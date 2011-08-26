@@ -2,13 +2,20 @@ Source: osso-wlan
 Section: net
 Priority: optional
 Maintainer: Janne Ylalehto <janne.ylalehto@nokia.com>
-Build-Depends: debhelper (>= 4.0.0), libdbus-1-dev, libglib2.0-dev (>= 2.6.0), libgconf2-dev, libiw-dev, libosso-dev, osso-wlan-dev (>= 1.0.10), mce-dev, cx3110x-headers, osso-ic-dev | icd2-osso-ic-dev
-Standards-Version: 3.6.0
+Build-Depends: debhelper (>= 4.0.0), libdbus-1-dev, libglib2.0-dev (>= 2.6.0), libgconf2-dev, libiw-dev, libosso-dev, osso-wlan-dev (>= 1.0.20), mce-dev, icd2-osso-ic-dev, upstart-dev, libcsnet-dev
+Standards-Version: 3.7.2
 
 Package: osso-wlan
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, dsme
-Recommends: mce
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: mce, dsme
 Description: WLAN control daemon
  Provides DBUS API for controlling WLAN
 
+Package: osso-wlan-dbg
+Section: devel
+Priority: extra
+Architecture: any
+Depends: osso-wlan (= ${Source-Version})
+Description: Debug symbols for osso-wlan
+ This package provides debug symbols for osso-wlan.

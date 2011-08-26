@@ -1,7 +1,7 @@
 /**
   @file dbus-signal.c
 
-  Copyright (C) 2004 Nokia Corporation. All rights reserved.
+  Copyright (C) 2004-2008 Nokia Corporation. All rights reserved.
 
   @author Janne Ylälehto <janne.ylalehto@nokia.com>
   
@@ -35,8 +35,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <linux/types.h>
-#include <osso-log.h>
 #include <wlancond-dbus.h>
+#include <eap-dbus.h>
 
 #include "common.h"
 #include "daemon.h"
@@ -51,8 +51,8 @@
 
 /* Cache of wireless interfaces */
 static struct wireless_iface *interface_cache = NULL;
-extern char *ifname;
-extern gchar own_mac[ETH_ALEN];
+
+extern struct wlan_status_t wlan_status;
 
 struct rtnl_handle
 {
@@ -65,24 +65,36 @@ static void handle_custom_event(char* event_pointer, int len,
                                 struct scan_results_t *scan_results);
 static int handle_wpa_ie_event_binary(unsigned char* p, unsigned int length, 
                                       struct scan_results_t *scan_results);
-static int handle_wpa_ie_assoc_event_binary(unsigned char* custom, unsigned int length);
 
-static inline void print_mac(const char *message, char* mac) 
+void print_mac(guint priority, const char *message, guchar* mac) 
 {
-        DLOG_DEBUG("%s %02x:%02x:%02x:%02x:%02x:%02x", message, mac[0],
-                   mac[1], mac[2], mac[3], mac[4], mac[5]);
+	if (priority > WLANCOND_PRIO_MEDIUM)
+		DLOG_INFO("%s %02x:%02x:%02x:%02x:%02x:%02x", message, mac[0],
+			  mac[1], mac[2], mac[3], mac[4], mac[5]);
+	else {
+		DLOG_DEBUG("%s %02x:%02x:%02x:%02x:%02x:%02x", message, mac[0],
+			   mac[1], mac[2], mac[3], mac[4], mac[5]);	
+	}
+}
+void clean_scan_results_item(gpointer data, gpointer user_data) 
+{
+        struct scan_results_t *scan_results = data;
+        g_free(scan_results->wpa_ie);
+        g_slice_free(struct scan_results_t, scan_results);
 }
 
 /** 
     Remove saved scan results.
     @param scan_results_save structure where scan results are saved.
 */
-void clean_scan_results(GSList *scan_results_save) 
+void clean_scan_results(GSList **scan_results_save) 
 {
-        g_slist_foreach(scan_results_save, (GFunc)g_free, NULL);
-        g_slist_free(scan_results_save);
+        //DLOG_DEBUG("Cleaning scan results");
+        
+        g_slist_foreach(*scan_results_save, clean_scan_results_item, NULL);
+        g_slist_free(*scan_results_save);
 
-        scan_results_save = NULL;
+        *scan_results_save = NULL;
 
 }
 
@@ -121,7 +133,7 @@ void send_dbus_scan_results(GSList *scan_results_save, const char* sender,
         if (sender == NULL || strnlen(sender, 5) == 0)
                 return;
 
-        DLOG_DEBUG("Sending scan results to DBUS to %s", sender);
+        DLOG_INFO("Scan results (%d APs) to %s", number_of_results, sender);
         
         results = new_dbus_signal(WLANCOND_SIG_PATH,
                                   WLANCOND_SIG_INTERFACE,
@@ -139,10 +151,10 @@ void send_dbus_scan_results(GSList *scan_results_save, const char* sender,
                                             &number_of_results))
                 die("Out of memory");
         
-        for (list = scan_results_save; list != NULL && list_count <= number_of_results; list = list->next) {
-                struct scan_results_t *scan_results = (struct scan_results_t*)list->data;
+        for (list = scan_results_save; list != NULL && list_count++ <= number_of_results; list = list->next) {
+                struct scan_results_t *scan_results = list->data;
                 DLOG_DEBUG("AP (%d) is %s, rssi:%d channel:%d cap:%08x", 
-                           list_count++,
+                           list_count,
                            scan_results->ssid,
                            scan_results->rssi, scan_results->channel,
                            scan_results->cap_bits);
@@ -192,6 +204,8 @@ void disconnected_signal(void)
                 WLANCOND_DISCONNECTED_SIG,
                 NULL);
         
+        gchar* ifname = wlan_status.ifname;
+        
         append_dbus_args(disconnected,
                          DBUS_TYPE_STRING, &ifname,
                          DBUS_TYPE_INVALID);
@@ -213,6 +227,8 @@ static void connected_signal(char* bssid, dbus_int32_t auth_status)
                 WLANCOND_SIG_INTERFACE,
                 WLANCOND_CONNECTED_SIG,
                 NULL);
+
+        gchar* ifname = wlan_status.ifname;
         
         append_dbus_args(connected,
                          DBUS_TYPE_STRING, &ifname,
@@ -230,56 +246,117 @@ static void connected_signal(char* bssid, dbus_int32_t auth_status)
    @return status.
  */
 static void handle_wap_event(struct scan_results_t *scan_results, 
-                             struct iw_event *event) 
+                             struct iw_event *event, gboolean scan_event) 
 {
-        int state, scan_state;
-        gboolean zero_address = FALSE;
 
         // Spurious event
         if (get_wlan_state() == WLAN_NOT_INITIALIZED) {
                 return;
         }
 
-        print_mac("SIOCGIWAP:", event->u.ap_addr.sa_data);
-        
-        if (!memcmp(event->u.ap_addr.sa_data, "\0\0\0\0\0\0", ETH_ALEN)) {
-                zero_address = TRUE;
-        }
-        
-        scan_state = get_scan_state();
-        
-        if (scan_state == SCAN_ACTIVE && zero_address && !get_mic_status()) {
-                DLOG_DEBUG("Got disconnected in the middle of scan");
-                set_wlan_state(WLAN_NOT_INITIALIZED,
-                               DISCONNECTED_SIGNAL,
-                               FORCE_YES);
-        }
-        
-        if (scan_state != SCAN_NOT_ACTIVE) {
+        if (scan_event == TRUE) {
+		print_mac(WLANCOND_PRIO_LOW, "SIOCGIWAP:", 
+			  (guchar*)event->u.ap_addr.sa_data);
                 memcpy(scan_results->bssid, event->u.ap_addr.sa_data, ETH_ALEN);
                 return;
         }
-        
+
+        print_mac(WLANCOND_PRIO_HIGH, "SIOCGIWAP:", 
+		  (guchar*)event->u.ap_addr.sa_data);
+
         // Check if the address is valid
-        if (zero_address == FALSE)
-        {                
+        if (memcmp(event->u.ap_addr.sa_data, "\0\0\0\0\0\0", ETH_ALEN)) {
+
+                if (get_wlan_state() == WLAN_INITIALIZED_FOR_SCAN) {
+                        DLOG_ERR("Should not happen");
+                        return;
+                }
+                
+                
                 remove_connect_timer();
+                wlan_status.retry_count = 0;
+
+                set_wlan_signal(WLANCOND_HIGH);
+
+                if (get_wpa_mode() == TRUE ||
+                    wlan_status.conn.authentication_type ==
+                    EAP_AUTH_TYPE_WFA_SC) {
+                        if (associate_supplicant() < 0)
+                                set_wlan_state(WLAN_NOT_INITIALIZED,
+                                               DISCONNECTED_SIGNAL,
+                                               FORCE_YES);
+                }
                 
                 dbus_int32_t auth_status = get_encryption_info();
                 
-                state = get_wlan_state();
-                
                 connected_signal(event->u.ap_addr.sa_data, auth_status);
                 // If not roaming, set NO_ADDRESS state
-                if (state != WLAN_CONNECTED) {
+                if (wlan_status.ip_ok == FALSE) {
                         set_wlan_state(WLAN_NO_ADDRESS, NO_SIGNAL, FORCE_NO);
+                } else {
+                        set_wlan_state(WLAN_CONNECTED, NO_SIGNAL, FORCE_NO);
                 }
-        } else {
+        } else { 
+                if (get_wlan_state() == WLAN_INITIALIZED_FOR_CONNECTION && 
+                    get_scan_state() == SCAN_ACTIVE) {
+                        /* We are alredy searching for better connection */
+                        return;
+                }
+                if (get_wlan_state() != WLAN_CONNECTED && 
+                    get_wlan_state() != WLAN_NO_ADDRESS &&
+                    get_wlan_state() != WLAN_INITIALIZED_FOR_CONNECTION) {
+                        DLOG_ERR("Not even connected?!?");
+                        return;
+                }
+		/* No roaming in WPS state */
+		if (wlan_status.conn.authentication_type == 
+		    EAP_AUTH_TYPE_WFA_SC) {
+			return;
+		}
+
+                // Disconnect supplicant
+                if (get_wpa_mode() == TRUE && 
+                    (get_wlan_state() == WLAN_CONNECTED || 
+                     get_wlan_state() == WLAN_NO_ADDRESS)) {
+                        disassociate_eap();
+                        clear_wpa_keys(wlan_status.conn.bssid);
+                }
+
+		/* Clear SSID and BSSID to stop mac80211 from roaming */
+		set_bssid(NULL_BSSID);
+		set_essid((char*)"", 1);
+		set_wpa_ie(&wlan_status);		
                 
-                /* Set_wlan_state puts IF down */
-                set_wlan_state(WLAN_NOT_INITIALIZED,
-                               DISCONNECTED_SIGNAL,
-                               FORCE_MAYBE);
+                DLOG_DEBUG("Trying to find a new connection");
+		
+                /* Decrese failed AP signal */
+                decrease_signal_in_roam_cache(wlan_status.conn.bssid);
+                
+                set_wlan_state(WLAN_INITIALIZED_FOR_CONNECTION, NO_SIGNAL, 
+                               FORCE_NO);
+                
+                if (find_connection_and_associate(wlan_status.roam_cache, 
+						  FALSE, FALSE) == 0)
+			return;
+
+                /* Break eternal loop if all APs are failing */
+                if (++wlan_status.retry_count > WLANCOND_MAX_SCAN_TRIES) {
+			DLOG_ERR("Too many failures: %d", 
+				 wlan_status.retry_count);
+			set_wlan_state(WLAN_NOT_INITIALIZED,
+				       DISCONNECTED_SIGNAL,
+				       FORCE_YES);
+			return;
+                }
+                
+                /* No luck, start scanning */
+                if (scan(wlan_status.conn.ssid, 
+                         wlan_status.conn.ssid_len, TRUE) < 0) {
+                        /* Set_wlan_state puts IF down */
+                        set_wlan_state(WLAN_NOT_INITIALIZED,
+                                       DISCONNECTED_SIGNAL,
+                                       FORCE_YES);
+                }
         }
 }
 
@@ -292,7 +369,7 @@ static void handle_wap_event(struct scan_results_t *scan_results,
  */
 int print_event_token(struct iw_event *event,
                       struct scan_results_t *scan_results,
-                      int ifindex)
+                      int ifindex, gboolean scan_event)
 {
 
         /* Now, let's decode the event */
@@ -339,26 +416,27 @@ int print_event_token(struct iw_event *event,
             }
             break;
             case SIOCGIWAP:
-                    handle_wap_event(scan_results, event);
+                    handle_wap_event(scan_results, event, scan_event);
                     break;
             case IWEVQUAL:
-                    DLOG_DEBUG("RSSI: %d dBm", (signed char)event->u.qual.level);
+                    //DLOG_DEBUG("RSSI: %d dBm", (signed char)event->u.qual.level);
                     scan_results->rssi = (signed char)event->u.qual.level;
                     break;
             case SIOCGIWFREQ:
-            {
-                    scan_results->channel = event->u.freq.m;
-                    DLOG_DEBUG("Channel: %d", scan_results->channel);
+            {	
+                    if (event->u.freq.e == 0) {
+                            scan_results->channel = event->u.freq.m;
+                            DLOG_DEBUG("Channel: %d", scan_results->channel);
+                    }
             }
             break;
             case SIOCGIWMODE:
                     if (event->u.mode == IW_MODE_ADHOC) {
+                            DLOG_DEBUG("Adhoc network");
                             scan_results->cap_bits |= WLANCOND_ADHOC;
                     } else {
                             scan_results->cap_bits |= WLANCOND_INFRA;
                     }
-                    DLOG_DEBUG("Mode: %s", scan_results->cap_bits & 
-                               WLANCOND_ADHOC ? "Adhoc":"Infra");
                     break;
             case SIOCGIWRATE:
                     switch (event->u.bitrate.value) {
@@ -386,8 +464,17 @@ int print_event_token(struct iw_event *event,
                         case 36*500000:
                                 scan_results->cap_bits |= WLANCOND_RATE_180;
                                 break;
+                        case 48*500000:
+                                scan_results->cap_bits |= WLANCOND_RATE_240;
+                                break;
                         case 52*500000:
                                 scan_results->cap_bits |= WLANCOND_RATE_260;
+                                break;
+                        case 72*500000:
+                                scan_results->cap_bits |= WLANCOND_RATE_360;
+                                break;
+                        case 96*500000:
+                                scan_results->cap_bits |= WLANCOND_RATE_480;
                                 break;
                         case 108*500000:
                                 scan_results->cap_bits |= WLANCOND_RATE_540;
@@ -404,21 +491,25 @@ int print_event_token(struct iw_event *event,
             case SIOCGIWENCODE:
                     /* WPA encryption is handled by a custom event */
                     if (event->u.data.flags & ~IW_ENCODE_DISABLED) {
+                            DLOG_DEBUG("Encrypted network");
                             scan_results->cap_bits |= WLANCOND_WEP;
                     } else {
                             scan_results->cap_bits |= WLANCOND_OPEN;
                     }
 
-                    DLOG_DEBUG("Encryption: %s", 
-                               scan_results->cap_bits & WLANCOND_WEP ? 
-                               "Yes":"No");
                     break;
             case SIOCGIWSCAN:
             {
+                    remove_scan_timer();
+                    
                     if (get_scan_state() == SCAN_ACTIVE) {
-                            DLOG_DEBUG("Scan results ready -- scan active");
+                            DLOG_INFO("Scan results ready -- scan active");
                             if (ask_scan_results(ifindex) == FALSE) {
-                                    DLOG_ERR("Getting scan results failed");
+                                    DLOG_ERR("Getting scan results failed");  
+
+                                    set_wlan_state(WLAN_NOT_INITIALIZED,
+                                                   DISCONNECTED_SIGNAL,
+                                                   FORCE_YES);
                             }
 #ifdef DEBUG
                     } else {
@@ -442,12 +533,12 @@ int print_event_token(struct iw_event *event,
                     if (handle_wpa_ie_event_binary(event->u.data.pointer, 
                                                    event->u.data.length, 
                                                    scan_results) < 0) {
-                            DLOG_ERR("Error in WPA IE handling, hiding SSID");
-                            scan_results->ssid[0] = '\0';
+                            DLOG_ERR("Error in IE handling");
                     }
                     
             }
             break;
+#if 0
             case IWEVASSOCRESPIE:
             case IWEVASSOCREQIE:
             {
@@ -458,9 +549,10 @@ int print_event_token(struct iw_event *event,
                             /* Set_wlan_state puts IF down */
                             set_wlan_state(WLAN_NOT_INITIALIZED,
                                            DISCONNECTED_SIGNAL,
-                                           FORCE_MAYBE);
+                                           FORCE_YES);
                     }
             }
+#endif
             break;
             case SIOCSIWFREQ:
             case SIOCSIWENCODE:
@@ -474,48 +566,84 @@ int print_event_token(struct iw_event *event,
         
         return 0;
 }
-
 /**
-   Handle association time WPA IE event.
-   @param p WPA IE data.
-   @param length WPA IE data length.
-   @return status.
- */
-static int handle_wpa_ie_assoc_event_binary(unsigned char* p, 
-                                            unsigned int length) 
+   Save WPA capabilities and print them to log.
+   @param scan_results Pointer to scan results structure.
+   @param ap_info Pointer to AP information structure.
+   @param p Pointer to event buffer.
+   @param length Event buffer length.
+*/
+static void save_caps(struct scan_results_t *scan_results, 
+                      struct ap_info_t *ap_info, unsigned char *p, 
+                      unsigned int length) 
 {
-        int status = 0;
-        int ie_len;
-        int sock;
+        gboolean no_wep = FALSE;
 
-        if (get_wpa_mode() == FALSE)
-                return 0;
+        scan_results->wpa_ie = g_memdup(p, length);
+        scan_results->wpa_ie_len = length;
         
-        // event is MAC:IE, do minimal sanity checking
-        if (length < ETH_ALEN + 1 + sizeof(struct rsn_ie_t)) {
-                DLOG_DEBUG("Invalid length: %d", length);
-                return -1;
+        /* Key mgmt */
+        if (ap_info->key_mgmt & WPA_PSK) {
+                scan_results->cap_bits |= WLANCOND_WPA_PSK;
+                no_wep = TRUE;
+        } 
+        if (ap_info->key_mgmt & WPA_802_1X) {
+                scan_results->cap_bits |= WLANCOND_WPA_EAP;
+                /* No WPS in EAP mode */
+                scan_results->cap_bits &= ~WLANCOND_WPS_MASK;
+                no_wep = TRUE;
+        }
+        DLOG_DEBUG("%s %s supported",
+                   (scan_results->cap_bits & WLANCOND_WPA2) ? "WPA2":"WPA",
+                   (ap_info->key_mgmt & WPA_PSK) ? "PSK":"EAP");
+        
+        /* Algorithms */
+        /* Pairwise */
+        if (ap_info->pairwise_cipher & CIPHER_SUITE_CCMP) {
+                scan_results->cap_bits |= WLANCOND_WPA_AES;
+        } 
+        if (ap_info->pairwise_cipher & CIPHER_SUITE_TKIP) {
+                scan_results->cap_bits |= WLANCOND_WPA_TKIP;
+        }
+        if (ap_info->pairwise_cipher & CIPHER_SUITE_WEP40 || 
+            ap_info->pairwise_cipher & CIPHER_SUITE_WEP104) {
+                
+                if (no_wep == TRUE) {
+                        DLOG_DEBUG("In WPA mode WEP is not allowed");
+                        scan_results->cap_bits |= WLANCOND_UNSUPPORTED_NETWORK;
+                }
+        }
+        DLOG_DEBUG("%s/%s/%s/%s for unicast", 
+                   (ap_info->pairwise_cipher & CIPHER_SUITE_CCMP)?"AES":"-", 
+                   (ap_info->pairwise_cipher & CIPHER_SUITE_TKIP)?"TKIP":"-",
+                   (ap_info->pairwise_cipher & CIPHER_SUITE_WEP104)?"WEP104":"-", 
+                   (ap_info->pairwise_cipher & CIPHER_SUITE_WEP40)?"WEP40":"-");
+        /* Group */
+        if (ap_info->group_cipher & CIPHER_SUITE_CCMP) {
+                scan_results->cap_bits |= WLANCOND_WPA_AES_GROUP;
+        }
+        if (ap_info->group_cipher & CIPHER_SUITE_TKIP) {
+                scan_results->cap_bits |= WLANCOND_WPA_TKIP_GROUP;
+        }
+        if (ap_info->group_cipher & CIPHER_SUITE_WEP40 || 
+            ap_info->group_cipher & CIPHER_SUITE_WEP104) {
+
+                if (no_wep == TRUE) {
+                        DLOG_DEBUG("In WPA mode WEP is not allowed");
+                        scan_results->cap_bits |= WLANCOND_UNSUPPORTED_NETWORK;
+                }
+        }
+        DLOG_DEBUG("%s/%s/%s/%s for multicast", 
+                   (ap_info->group_cipher & CIPHER_SUITE_CCMP)?"AES":"-", 
+                   (ap_info->group_cipher & CIPHER_SUITE_TKIP)?"TKIP":"-",
+                   (ap_info->group_cipher & CIPHER_SUITE_WEP104)?"WEP104":"-", 
+                   (ap_info->group_cipher & CIPHER_SUITE_WEP40)?"WEP40":"-");
+        /* Remove WEP bit to make UI show correct dialogs */
+        if (no_wep == TRUE) {
+                scan_results->cap_bits &= ~WLANCOND_WEP;
         }
 
-        ie_len = length - ETH_ALEN - 1;
-        
-        if (memcmp(p, own_mac, ETH_ALEN) == 0) 
-        {
-                //DLOG_DEBUG("Own WPA IE found");
-                update_own_ie(g_memdup(p + ETH_ALEN + 1, ie_len), ie_len);
-        } else {
-                /* Push WPA IEs to security SW */
-                status = wpa_ie_push(p, p + ETH_ALEN + 1, ie_len);
-                
-                /* Check if we are roaming */
-                if (get_wlan_state() == WLAN_CONNECTED ||
-                    get_wlan_state() == WLAN_NO_ADDRESS) {
-                        sock = socket_open();
-                        set_power_state(WLANCOND_POWER_ON, sock);
-                }
-        } 
-                
-        return status;
+        //DLOG_DEBUG("Cap bits: 0x%08x", scan_results->cap_bits);
 }
 
 /**
@@ -525,88 +653,88 @@ static int handle_wpa_ie_assoc_event_binary(unsigned char* p,
    @param scan_results Pointer to scan results structure.
 */
 static int handle_wpa_ie_event_binary(unsigned char* p, unsigned int length, 
-                                       struct scan_results_t *scan_results) 
+                                      struct scan_results_t *scan_results) 
 {
         struct ap_info_t ap_info;
-        gboolean no_wep = FALSE;
+        const guint8 WPA1_OUI[] = { 0x00, 0x50, 0xf2, 0x01 };
+        const guint8 WPS_OUI[] = { 0x00, 0x50, 0xf2, 0x04 };
+        guchar* ie_pos = NULL;
+        guint ie_len = 0;
+        guint index = 0;
+        
+        while(index <= (length - 2))
+        {
+                // WPA2
+                if (p[index] == RSN_ELEMENT && length-index > 3) {
+                        
+                        guint len = p[index+1]+2;
+                        
+                        if (len > length-index) {
+                                DLOG_ERR("Too long IE");
+                                return -1;
+                        }
+                        
+                        /* Add WPA2 */
+                        scan_results->cap_bits |= WLANCOND_WPA2;
+                        
+                        ie_pos = &p[index];
+                        ie_len = len;
+                }
+                // WPA1
+                else if (p[index] == WPA_ELEMENT && length-index > 7 && 
+                         memcmp(&p[index + 2], WPA1_OUI, sizeof(WPA1_OUI)) == 0) 
+                {
+                        guint len = p[index+1]+2;
+                        
+                        if (len > length-index) {
+                                DLOG_ERR("Too long IE");
+                                return -1;
+                        }
+                        
+                        if (!(scan_results->cap_bits & WLANCOND_ENCRYPT_WPA2_MASK)) {
+                                ie_pos = &p[index];
+                                ie_len = len;
+                        } else {
+                                DLOG_DEBUG("Ignoring WPA IE");
+                        }       
+                }
+                // Protected setup
+                else if (p[index] == WPA_ELEMENT && length-index > 3 && 
+                         memcmp(&p[index + 2], WPS_OUI, sizeof(WPS_OUI)) == 0) 
+                {
+                        guint len = p[index+1]+2;
+                        
+                        if (len > length-index) {
+                                DLOG_ERR("Too long IE");
+                                return -1;
+                        }
+                        if (handle_wps_ie(&p[index+6], scan_results, len) < 0) {
+                                return -1;
+                        }
+                }
 
-        if (!p || length < sizeof(struct rsn_ie_t))
-                return -1;
-        
-        memset(&ap_info, 0, sizeof(ap_info));
-        
-        if (p[0] == RSN_ELEMENT) {
-                DLOG_DEBUG("RSN IE");
-                if (parse_rsn_ie(p, length, &ap_info) < 0) {
-                        return -1;
-                }
-                scan_results->cap_bits |= WLANCOND_WPA2;
-        } else if (p[0] == WPA_ELEMENT) {
-                DLOG_DEBUG("WPA IE");
-                if (parse_wpa_ie(p, length, &ap_info) < 0) {
-                        return -1;
-                }
-        } else {
-                DLOG_ERR("Invalid IE");
-                return -1;
+                index +=p[index+1]+2;
         }
         
-        /* Key mgmt */
-        if (ap_info.key_mgmt & WPA_PSK) {
-                DLOG_DEBUG("WPA PSK supported");
-                scan_results->cap_bits |= WLANCOND_WPA_PSK;
-                no_wep = TRUE;
-        } 
-        if (ap_info.key_mgmt & WPA_802_1X) {
-                DLOG_DEBUG("WPA EAP supported");
-                scan_results->cap_bits |= WLANCOND_WPA_EAP;
-                no_wep = TRUE;
-        }
-        /* Algorithms */
-        /* Pairwise */
-        if (ap_info.pairwise_cipher & CIPHER_SUITE_CCMP) {
-                DLOG_DEBUG("WPA AES supported for unicast");
-                scan_results->cap_bits |= WLANCOND_WPA_AES;
-        } 
-        if (ap_info.pairwise_cipher & CIPHER_SUITE_TKIP) {
-                DLOG_DEBUG("WPA TKIP supported for unicast");
-                scan_results->cap_bits |= WLANCOND_WPA_TKIP;
-        }
-        if (ap_info.pairwise_cipher & CIPHER_SUITE_WEP40 || 
-            ap_info.pairwise_cipher & CIPHER_SUITE_WEP104) {
-                DLOG_DEBUG("WEP supported for unicast");
+        if (ie_pos != NULL) {
                 
-                if (no_wep == TRUE) {
-                        DLOG_DEBUG("In WPA mode WEP is not allowed");
-                        scan_results->cap_bits |= WLANCOND_UNSUPPORTED_NETWORK;
+                memset(&ap_info, 0, sizeof(ap_info));
+                if (scan_results->cap_bits & WLANCOND_ENCRYPT_WPA2_MASK) {
+                        if (parse_rsn_ie(ie_pos, ie_len, &ap_info) < 0) {
+                                return -1;
+                        }
+                } else {
+                        if (parse_wpa_ie(ie_pos, ie_len, &ap_info) < 0) {
+                                return -1;
+                        }
                 }
+                
+                save_caps(scan_results, &ap_info, ie_pos, ie_len);
         }
-        /* Group */
-        if (ap_info.group_cipher & CIPHER_SUITE_CCMP) {
-                DLOG_DEBUG("WPA AES supported for multicast");
-                scan_results->cap_bits |= WLANCOND_WPA_AES_GROUP;
-        }
-        if (ap_info.group_cipher & CIPHER_SUITE_TKIP) {
-                DLOG_DEBUG("WPA TKIP supported for multicast");
-                scan_results->cap_bits |= WLANCOND_WPA_TKIP_GROUP;
-        }
-        if (ap_info.group_cipher & CIPHER_SUITE_WEP40 || 
-            ap_info.group_cipher & CIPHER_SUITE_WEP104) {
-                DLOG_DEBUG("WEP supported for multicast");
-
-                if (no_wep == TRUE) {
-                        DLOG_DEBUG("In WPA mode WEP is not allowed");
-                        scan_results->cap_bits |= WLANCOND_UNSUPPORTED_NETWORK;
-                }
-        }
-        /* Remove WEP bit to make UI show correct dialogs */
-        if (no_wep == TRUE) {
-                scan_results->cap_bits ^= WLANCOND_WEP;
-        }
-
+        
         return 0;
 }
-
+        
 /**
    Handle custom event.
    @param event_pointer pointer to custom event.
@@ -617,24 +745,33 @@ static void handle_custom_event(char* event_pointer, int length,
                                 struct scan_results_t *scan_results) 
 {
         
-        if (length < 11 || length > IW_GENERIC_IE_MAX) {
+        if (length < 5 || length > IW_GENERIC_IE_MAX) {
                 DLOG_DEBUG("Invalid length event");
                 return;
         }
-
-        if (strncmp(event_pointer, "MIC_FAILURE", 11) == 0) {
-                DLOG_DEBUG("MIC failure event");
-                dbus_bool_t key_type = FALSE; //TODO key type when supported
-                handle_mic_failure(key_type);
-        } else if (strncmp(event_pointer, "DEAUTHENTICATION", 16) == 0){
-                if (get_wpa_mode() == TRUE && 
-                    (get_wlan_state() == WLAN_CONNECTED || 
-                     get_wlan_state() == WLAN_NO_ADDRESS)) {
-                        disassociate_eap();
-                }
-                DLOG_DEBUG("Deauthenticated");
+        if (strncmp(event_pointer, "tsf=", 4) == 0) {
+                /* Do nothing for now */
+        } else if (strncmp(event_pointer, "LOWSIGNAL", 10) == 0) {
+                DLOG_INFO("Low signal");
+                set_wlan_signal(WLANCOND_LOW);
+                if (get_wlan_state() == WLAN_CONNECTED)
+                	schedule_scan(WLANCOND_INITIAL_ROAM_SCAN_DELAY);
+        } else if (strncmp(event_pointer, "HIGHSIGNAL", 11) == 0) {
+                DLOG_INFO("High signal");
+                set_wlan_signal(WLANCOND_HIGH);
+        } else if (strncmp(event_pointer, "MLME-MICHAELMICFAILURE.indication", 
+                           33) == 0) {
+                dbus_bool_t key_type = TRUE;
+                
+                if (strstr(event_pointer, "unicast") != NULL)
+                        key_type = FALSE;
+                
+                DLOG_INFO("MIC failure event for %s key", 
+			  key_type==FALSE?"unicast":"group");
+                handle_mic_failure(key_type, wlan_status.conn.bssid);
         } else {
-                DLOG_DEBUG("Unknown custom event");
+                //DLOG_DEBUG("Unknown custom event");
+                //DLOG_DEBUG("%s\n", event_pointer);
         }
 }
 
@@ -645,7 +782,7 @@ static void handle_custom_event(char* event_pointer, int length,
    @param name Interface name.
    @return status.
  */
-static inline int index2name(int skfd, int ifindex, char *name)
+static int index2name(int skfd, int ifindex, char *name)
 {
         struct ifreq irq;
         int ret = 0;
@@ -702,7 +839,7 @@ struct wireless_iface *get_interface_data(int ifindex)
         {
                 perror("index2name");
                 g_free(curr);
-                return(NULL);
+                return NULL;
         }
         curr->has_range = (iw_get_range_info(skfd, curr->ifname, &curr->range) >= 0);
         /* Link it */
@@ -711,6 +848,7 @@ struct wireless_iface *get_interface_data(int ifindex)
 
         return(curr);
 }
+
 /**
    Event handling.
    @param ifindex Interface index.
@@ -743,7 +881,8 @@ static int print_event_stream(int ifindex, char *data, int len)
                 if (ret != 0)
                 {
                         if (ret > 0)
-                                print_event_token(&iwe, &scan_results, ifindex);
+                                print_event_token(&iwe, &scan_results, ifindex, 
+                                                  FALSE);
                         else
                                 die("Invalid event");
                 }
@@ -855,13 +994,14 @@ static void handle_message(struct nlmsghdr *hdr)
 */
 static void handle_netlink_event(int fd)
 {
+        char buf[1024];
         struct sockaddr_nl nl;
         socklen_t nl_len = sizeof(struct sockaddr_nl);
         int res;
-        char buf[2048];
         
         while (1) {
-                res = recvfrom (fd, buf, sizeof(buf), MSG_DONTWAIT, (struct sockaddr*)&nl, &nl_len);
+                res = recvfrom (fd, buf, sizeof(buf), MSG_DONTWAIT,
+				(struct sockaddr*)&nl, &nl_len);
                 
                 /* Error */
                 if (res < 0) {

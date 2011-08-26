@@ -41,18 +41,18 @@ LINTFLAGS := $(CFLAGS) +posixlib +unixlib +ignorequals -predboolint \
 
 # Removed -Wcast-align because of warnings in scratchbox
 DEBUG_CFLAGS = -Wall -Wwrite-strings -Wmissing-declarations \
-        -Werror -Wmissing-prototypes -Wstrict-prototypes \
+        -Wmissing-prototypes -Wstrict-prototypes \
 	-Wunused -Wunused-function -Wunused-variable -Wunused-value \
 	-Wsign-compare -Wpointer-arith -Wundef -Wbad-function-cast \
 	-Waggregate-return -Wmissing-noreturn -Wnested-externs \
 	-Wchar-subscripts -Wformat-security -Wformat=2 -Wno-format-nonliteral
-	#-Wunreachable-code -Wshadow -std=c99
+	#-Wunreachable-code -Wshadow -std=c99 -Werror
 
 MCFLAGS := $(CFLAGS) $(DEBUG_CFLAGS)
 
 CFLAGS += $(DEBUG_CFLAGS)
 
-OBJECTS = main.o dbus-handler.o dbus-signal.o wpa.o
+OBJECTS = main.o dbus-handler.o dbus-signal.o wpa.o wps.o
 
 EXT_OBJ = $(LIBDIR)/daemon.o $(LIBDIR)/dbus-helper.o $(LIBDIR)/dbus.o
 

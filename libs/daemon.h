@@ -43,7 +43,4 @@ int check_pid(const char *pidfile);
  */
 int write_pid(const char *pidfile);
 
-/** Send the process to the background */
-void daemonize(void);
-
 #endif /* _DAEMON_H_ */

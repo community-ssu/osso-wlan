@@ -1,9 +1,9 @@
 /**
   @file log.h
 
-  Copyright (C) 2004 Nokia Corporation. All rights reserved.
+  Copyright (C) 2004-2008 Nokia Corporation. All rights reserved.
 
-  @author Johan Hedberg <johan.hedberg@nokia.com>
+  @author Janne Ylalehto <janne.ylalehto@nokia.com>
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License as published by the
@@ -22,8 +22,23 @@
 */
 #ifndef _LOG_H_
 #define _LOG_H_
+#include <syslog.h>
 
-#include <osso-log.h>
+#if !defined USE_STDOUT
+#define DLOG_OPEN(X) openlog(X, LOG_PID | LOG_NDELAY, LOG_DAEMON)
+#define LOG_CLOSE(...) closelog()
+#define DLOG_INFO(...) (wlancond_print(WLANCOND_PRIO_HIGH, __VA_ARGS__))
+#define DLOG_DEBUG(...) (wlancond_print(WLANCOND_PRIO_LOW, __VA_ARGS__))
+#define DLOG_ERR(...) (wlancond_print(WLANCOND_PRIO_HIGH, __VA_ARGS__))
+#define DLOG_WARN(...) (wlancond_print(WLANCOND_PRIO_MEDIUM,__VA_ARGS__))
+#else
+#define DLOG_OPEN(...) ((void)(0))
+#define LOG_CLOSE(...) ((void)(0))
+#define DLOG_INFO(...) (printf(__VA_ARGS__),printf("\n"))
+#define DLOG_DEBUG(...) (printf(__VA_ARGS__),printf("\n"))
+#define DLOG_ERR(...) (printf(__VA_ARGS__),printf("\n"))
+#define DLOG_WARN(...) (printf(__VA_ARGS__),printf("\n"))
+#endif
 
 /** Print error message and exit */
 #define die(...) do {   \

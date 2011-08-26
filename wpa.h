@@ -25,13 +25,10 @@
 
 #include <asm/types.h>
 #include "common.h"
-// Just take the one header
-#include "/usr/src/cx3110x-headers/include/linux/sm_drv_wpa.h"
 
-//#define MIN_WPA_KEY_LEN 16
 #define MAX_WPA_KEY_LEN 32
 
-#define WPA_ELEMENT 0xdd
+#define WPA_ELEMENT 0xDD
 #define RSN_ELEMENT 0x30
 
 #define WPA_VERSION 1
@@ -57,22 +54,24 @@ struct wpa_ie_t {
 } __attribute__ ((packed));
 
 typedef struct ap_info_t {
-        int pairwise_cipher;
-        int group_cipher;
-        int key_mgmt;
-        int rsn_capabilities;
+        guint pairwise_cipher;
+        guint group_cipher;
+        guint key_mgmt;
 } ap_info_t;
 
-gboolean set_encryption_method(guint32 cipher);
+gboolean set_encryption_method(guint32 cipher, 
+                               struct wlan_status_t *wlan_status);
 int set_wpa_encryption(int encryption, struct wlan_status_t *wlan_status);
 int set_wpa2_encryption(int encryption, struct wlan_status_t *wlan_status);
-int set_wpa_ie(const unsigned char* wpa_ie, int wpa_ie_len, 
-               struct wlan_status_t *wlan_status);
-gboolean get_mic_status(void);
-int handle_mic_failure(gboolean key_type);
+int handle_mic_failure(gboolean key_type, unsigned char *bssid);
 int parse_rsn_ie(unsigned char* wpa_ie, unsigned int wpa_ie_len,
                  struct ap_info_t* ap_info);
 int parse_wpa_ie(unsigned char* wpa_ie, unsigned int wpa_ie_len,
                  struct ap_info_t* ap_info);
+int handle_wps_ie(unsigned char* p, struct scan_results_t *scan_results, 
+                  unsigned int length);
+int set_countermeasures(guint on_off);
+gboolean is_ap_in_black_list(unsigned char* bssid);
+int set_wpa_ie(struct wlan_status_t *wlan_status);
 
 #endif /* _WPA_H_ */

@@ -29,24 +29,17 @@
 #endif
 
 #define KEVENT_DBUS_IF "org.kernel.kevent"
-#define COVER_SWITCH_PATH "/org/kernel/devices/platform/gpio_switch/prot_shell/cover_switch"
-#define COVER_CHANGE "change"
 
 void append_dbus_args(DBusMessage *message, int first_arg_type, ...);
 
-int send_and_unref(DBusConnection *connection, DBusMessage *message);
+void send_and_unref(DBusConnection *connection, DBusMessage *message);
 
-int send_invalid_args(DBusConnection *connection, DBusMessage *message);
+void send_invalid_args(DBusConnection *connection, DBusMessage *message);
 
 DBusMessage *new_dbus_signal(const char *path,
                              const char *interface,
                              const char *name,
                              const char *destination);
-
-DBusMessage *new_dbus_method_call(const char *service,
-                                  const char *path,
-                                  const char *interface,
-                                  const char *method);
 
 DBusMessage *new_dbus_method_return(DBusMessage *message);
 
@@ -57,5 +50,7 @@ gboolean add_mode_listener(DBusConnection *connection);
 gboolean add_cover_listener(DBusConnection *connection,
                             void (*cover_cb)(void));
 gboolean add_icd_listener(DBusConnection *connection);
+gboolean add_csd_listener(DBusConnection *connection);
+gboolean add_bluez_listener(DBusConnection *connection);
 
 #endif /* _DBUD_HELPER_H_ */

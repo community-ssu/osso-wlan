@@ -28,13 +28,13 @@
 #include <signal.h>
 #include <glib.h>
 #include <glib-object.h>
-#include <osso-log.h>
+#include <unistd.h>
 #include <wlancond-dbus.h>
 
 #include "dbus-helper.h"
 
-#include "common.h"
 #include "daemon.h"
+#include "common.h"
 #include "dbus.h"
 #include "dbus-handler.h"
 #include "log.h"
@@ -141,10 +141,14 @@ static void pid_cleanup(void) {
 int main(int argc, char *argv[]) {
         int i, old_pid;
         
+        g_type_init();
+        
         program_name = argv[0];
         i = decode_switches(argc, argv);
+
+	init_logging();
         
-        DLOG_OPEN("wlancond" " " VERSION);
+        DLOG_OPEN("wlancond");
         
         old_pid = check_pid(PIDFILE);
         if (old_pid) {
@@ -152,15 +156,14 @@ int main(int argc, char *argv[]) {
         }
         
         if (daemon_mode) {
-                daemonize();
+                if (daemon(0, 0)<0)
+			die("daemon() failed");
         }
         
         write_pid(PIDFILE);
         atexit(pid_cleanup);
         
         event_loop = g_main_loop_new(NULL, FALSE);
-        
-        g_type_init();
         
         if (setup_dbus_connection(WLANCOND_SERVICE, init_dbus_handlers) < 0) {
                 die("D-BUS connection setup failed!");
@@ -195,7 +198,6 @@ int main(int argc, char *argv[]) {
         if (mode != NULL) {
                 mode_change(mode);
                 g_free(mode);
-                mode = NULL;
         } else {
                 DLOG_ERR("Unable to determine device mode. Assuming normal mode.");
                 mode_change("normal");
@@ -206,7 +208,7 @@ int main(int argc, char *argv[]) {
         /* Enter main loop */
         g_main_loop_run(event_loop);
 
-        set_wlan_state(WLAN_NOT_INITIALIZED, DISCONNECTED_SIGNAL, TRUE);
+        set_wlan_state(WLAN_NOT_INITIALIZED, DISCONNECTED_SIGNAL, FORCE_YES);
 
         destroy_dbus_handlers(get_dbus_connection());
         close_dbus_connection();

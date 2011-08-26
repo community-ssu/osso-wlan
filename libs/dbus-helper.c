@@ -35,6 +35,9 @@
 #include "log.h"
 #include "dbus-helper.h"
 #include "../common.h"
+#include "../dbus-handler.h"
+
+#define OUT_OF_MEMORY_STR "Out of memory"
 
 DBusMessage *new_dbus_signal(const char *path,
                              const char *interface,
@@ -44,12 +47,12 @@ DBusMessage *new_dbus_signal(const char *path,
 
         signal = dbus_message_new_signal(path, interface, name);
         if (signal == NULL) {
-                die("Out of memory during dbus_message_new_error()");
+                die(OUT_OF_MEMORY_STR);
         }
 
         if (destination) {
                 if (!dbus_message_set_destination(signal, destination)) {
-                        die("Out of memory during dbus_message_set_destination()");
+                        die(OUT_OF_MEMORY_STR);
                 }
         }
 
@@ -58,26 +61,12 @@ DBusMessage *new_dbus_signal(const char *path,
         return signal;
 }
 
-DBusMessage *new_dbus_method_call(const char *service,
-                                  const char *path,
-                                  const char *interface,
-                                  const char *method) {
-        DBusMessage *message;
-
-        message = dbus_message_new_method_call(service, path, interface, method);
-        if (message == NULL) {
-                die("Out of memory during dbus_message_new_method_call()");
-        }
-
-        return message;
-}
-
 DBusMessage *new_dbus_method_return(DBusMessage *message) {
         DBusMessage *reply;
 
         reply = dbus_message_new_method_return(message);
         if (reply == NULL) {
-                die("Out of memory during dbus_message_new_method_return()");
+                die(OUT_OF_MEMORY_STR);
         }
 
         return reply;
@@ -88,25 +77,20 @@ DBusMessage *new_dbus_error(DBusMessage *message, const char *name) {
 
         error = dbus_message_new_error(message, name, NULL);
         if (error == NULL) {
-                die("Out of memory during dbus_message_new_error()");
+                die(OUT_OF_MEMORY_STR);
         }
 
         return error;
 }
 
-int send_and_unref(DBusConnection *connection, DBusMessage *message) {
+void send_and_unref(DBusConnection *connection, DBusMessage *message) {
         if (!dbus_connection_send(connection, message, NULL)) {
-                dbus_message_unref(message);
-                return -1;
+                DLOG_ERR("Sending message failed!");
         }
-
-        dbus_connection_flush(connection);
         dbus_message_unref(message);
-
-        return 0;
 }
 
-int send_invalid_args(DBusConnection *connection, DBusMessage *message) {
+void send_invalid_args(DBusConnection *connection, DBusMessage *message) {
         DBusMessage *reply;
 
         reply = new_dbus_error(message, DBUS_ERROR_INVALID_ARGS);
@@ -126,33 +110,20 @@ void append_dbus_args(DBusMessage *message, int first_arg_type, ...) {
                 die("dbus_message_append_args failed");
         }
 }
-#ifdef USE_MCE_COVER
-static DBusHandlerResult cover_filter(DBusConnection *connection,
-                                      DBusMessage    *message,
-                                      void (*cover_cb)(void)) {
-
-        if (!dbus_message_is_signal(message,
-                                    KEVENT_DBUS_IF,
-                                    COVER_CHANGE)) {
-                return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-        }
-        
-        cover_cb();
-        
-        return DBUS_HANDLER_RESULT_HANDLED;
-}
-#endif
 gchar *get_device_mode(DBusConnection *connection) {
 #ifdef USE_MCE_MODE
         DBusError derror;
         char *mode, *ret;
         DBusMessage *message, *reply;
 
-        message = new_dbus_method_call(MCE_SERVICE,
-                                       MCE_REQUEST_PATH,
-                                       MCE_REQUEST_IF,
-                                       MCE_DEVICE_MODE_GET);
-
+        message = dbus_message_new_method_call(MCE_SERVICE,
+                                               MCE_REQUEST_PATH,
+                                               MCE_REQUEST_IF,
+                                               MCE_DEVICE_MODE_GET);
+        
+        if (message == NULL)
+                return NULL;
+        
         dbus_error_init(&derror);
         reply = dbus_connection_send_with_reply_and_block(connection,
                                                           message,
@@ -162,6 +133,8 @@ gchar *get_device_mode(DBusConnection *connection) {
         if (dbus_error_is_set(&derror)) {
                 DLOG_ERR("Getting device mode from MCE failed: %s", derror.message);
                 dbus_error_free(&derror);
+                if (reply)
+                        dbus_message_unref(reply);
                 return NULL;
         }
         if (!dbus_message_get_args(reply, NULL,
@@ -186,7 +159,7 @@ gchar *get_device_mode(DBusConnection *connection) {
 gboolean add_mode_listener(DBusConnection *connection) {
 
 #ifdef ACTIVITY_CHECK
-        dbus_bus_add_match(connection, 
+        dbus_bus_add_match(connection,
                            "interface=" MCE_SIGNAL_IF
                            ",member=" MCE_INACTIVITY_SIG, NULL);
         dbus_bus_add_match(connection, 
@@ -201,22 +174,6 @@ gboolean add_mode_listener(DBusConnection *connection) {
         return dbus_connection_add_filter(connection, (DBusHandleMessageFunction)wlancond_req_handler, NULL, NULL);
 }
 #endif
-#ifdef USE_MCE_COVER
-gboolean add_cover_listener(DBusConnection *connection,
-                            void (*cover_cb)(void)) {
-
-        dbus_bus_add_match(connection,
-                           "interface=" KEVENT_DBUS_IF
-                           ",member=change"
-                           ",path=" COVER_SWITCH_PATH, NULL);
-
-        return dbus_connection_add_filter(
-                connection,
-                (DBusHandleMessageFunction)cover_filter,
-                cover_cb,
-                NULL);
-}
-#endif
 
 gboolean add_icd_listener(DBusConnection *connection) {
         dbus_bus_add_match(connection, 
@@ -224,4 +181,27 @@ gboolean add_icd_listener(DBusConnection *connection) {
                            ",member=" ICD_STATUS_CHANGED_SIG, NULL);        
         
         return dbus_connection_add_filter(connection, (DBusHandleMessageFunction)wlancond_req_handler, NULL, NULL);
+}
+
+gboolean add_csd_listener(DBusConnection *connection) {
+        dbus_bus_add_match(connection, 
+                           "type='signal',interface=" PHONE_NET_DBUS_INTERFACE
+			   ",member=" PHONE_REGISTRATION_STATUS_CHANGE_SIG, NULL);        
+        
+        return dbus_connection_add_filter(
+		connection, (DBusHandleMessageFunction)wlancond_req_handler, 
+		NULL, NULL);
+}
+gboolean add_bluez_listener(DBusConnection *connection) {
+        dbus_bus_add_match(connection, 
+                           "type='signal',interface=" BLUEZ_ADAPTER_SERVICE_NAME
+			   ",member=" BLUEZ_ADAPTER_PROPERTY_CHANGED_SIG, NULL);
+
+	dbus_bus_add_match(connection, 
+			   "type='signal',interface=" BLUEZ_HEADSET_SERVICE_NAME
+			   ",member=" BLUEZ_HEADSET_PROPERTY_CHANGED_SIG, NULL);
+
+        return dbus_connection_add_filter(
+		connection, (DBusHandleMessageFunction)wlancond_req_handler, 
+		NULL, NULL);
 }

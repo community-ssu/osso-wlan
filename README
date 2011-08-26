@@ -10,7 +10,6 @@ require root priviledges
 GConf settings
 ==============
 
-None.
 
 wlancond D-Bus API
 ================

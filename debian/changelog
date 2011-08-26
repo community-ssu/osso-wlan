@@ -1,8 +1,369 @@
-osso-wlan (1.3.10) unstable; urgency=low
+osso-wlan (3.0.6+0m5) unstable; urgency=low
 
-  * Fix build issues for SDK. Fixes: NB#83881
+  * This entry has been added by BIFH queue processor
+    Suffix +0m5 added to package revision
 
- -- Janne Ylalehto <janne.ylalehto@nokia.com>  Wed, 09 Apr 2008 13:52:51 +0300
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 21 Sep 2009 13:47:02 +0300
+
+osso-wlan (3.0.6) unstable; urgency=low
+
+  * Fixes: NB#134732 - Receiving beacon consumes too much power
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 18 Sep 2009 16:13:11 +0300
+
+osso-wlan (3.0.5) unstable; urgency=low
+
+  * Fixes: NB#135286 - Make sure calibration is always done 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 28 Aug 2009 13:34:20 +0300
+
+osso-wlan (3.0.4) unstable; urgency=low
+
+  * Fixes: NB#125844 - Connection problems with a WPA2 access point 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Wed, 26 Aug 2009 09:45:47 +0300
+
+osso-wlan (3.0.3) unstable; urgency=low
+
+  * Fixes: NB#126105 - Wlancond printing too much debug information 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 13 Jul 2009 12:49:37 +0300
+
+osso-wlan (3.0.2) unstable; urgency=low
+
+  * Implemented dynamic WLAN regulatory handling
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 11 Jun 2009 14:42:40 +0300
+
+osso-wlan (2.0.47) unstable; urgency=low
+
+  * Make scanning more robust by always removing old scan before adding new
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Wed, 03 Jun 2009 09:55:13 +0300
+
+osso-wlan (2.0.46) unstable; urgency=low
+
+  * Fixes: NB#109251 - Use final CAM timeout values in WLAN PSM 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 28 May 2009 13:51:04 +0300
+
+osso-wlan (2.0.45) unstable; urgency=low
+
+  * Fixed a bug which caused sometimes power save to be left on in 
+    adhoc when switching from infra to adhoc.
+  * In adhoc SIOCGIWRATE seems to return an error. Let's ignore it now to
+    allow other information to be available for callers.
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Wed, 27 May 2009 12:13:31 +0300
+
+osso-wlan (2.0.44) unstable; urgency=low
+
+  * Fixes: NB#117352 - WPS certification bug fix for multiple registrars 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 25 May 2009 14:20:28 +0300
+
+osso-wlan (2.0.43) unstable; urgency=low
+
+  * Fixes: NB#114692 - Remove scan timer when scan was finished 
+    abnormally
+  * Fixes: NB#109495 - osso-wlan build depends on both icd2-dev and 
+    icd2-osso-ic-dev
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 15 May 2009 12:31:37 +0300
+
+osso-wlan (2.0.42) unstable; urgency=low
+
+  * Fixes: NB#108524 - Roaming test failed in the certification
+  * Removed spurious disconnect events and added set_wpa_ie() in handle_wap_event()
+    and added call to schedule_scan() in handle_custom_event() function in
+    dbus-signal.c. Added schedule_scan() function in dbus-handler.c to delay the
+    scanning in case of LOW signal while roaming.
+
+ -- Usman Rahim <usman.rahim@nokia.com>  Fri,  3 Apr 2009 17:12:12 +0300
+
+osso-wlan (2.0.41) unstable; urgency=low
+
+  * Don't choose the BSSID in adhoc. Fixes: NB#101156 - Device could not 
+    connect to Ad-Hoc WLAN network
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 16 Mar 2009 14:22:41 +0200
+
+osso-wlan (2.0.40) unstable; urgency=low
+
+  * Fixes: NB#105898 - WLAN is in full power save mode all the time when
+    connected 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Sat, 14 Mar 2009 12:15:07 +0200
+
+osso-wlan (2.0.39) unstable; urgency=low
+
+  * Don't roam in WPS state 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Sat, 14 Mar 2009 10:57:58 +0200
+
+osso-wlan (2.0.38) unstable; urgency=low
+
+  * Removed DBUS check for method call. 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 03 Mar 2009 12:27:49 +0200
+
+osso-wlan (2.0.37) unstable; urgency=low
+
+  * Don't call dbus_connection_flush()
+    Make scanning more robust and fix off by one error. Fixes: NB#103633
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 20 Feb 2009 08:59:46 +0200
+
+osso-wlan (2.0.36) unstable; urgency=low
+
+  * Let wlancond choose the channel in adhoc if not given in the DBUS. 
+    Fixes: NB#101156 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 10 Feb 2009 13:29:44 +0200
+
+osso-wlan (2.0.35) unstable; urgency=low
+
+  * Rename osso-wlan.upstart to wlancond.upstart. Fixes: NB#101003 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 09 Feb 2009 14:14:16 +0200
+
+osso-wlan (2.0.34) unstable; urgency=low
+
+  * Limit scan results ioctl buffer to 16 bits. Fixes: NB#100954
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 09 Feb 2009 09:43:11 +0200
+
+osso-wlan (2.0.33) unstable; urgency=low
+
+  * Fix Coverity warnings 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 05 Feb 2009 08:53:29 +0200
+
+osso-wlan (2.0.32) unstable; urgency=low
+
+  * Ignore spurious disconnect events. Speeds up roaming. 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 03 Feb 2009 12:11:24 +0200
+
+osso-wlan (2.0.31) unstable; urgency=low
+
+  * Set also SSID to zero when we drop from the network. This helps in
+    roaming when we cannot hear AP beacons any more. 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 23 Jan 2009 14:46:49 +0200
+
+osso-wlan (2.0.30) unstable; urgency=low
+
+  * Add timer to scans from DBUS 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 23 Jan 2009 13:54:41 +0200
+
+osso-wlan (2.0.29) unstable; urgency=low
+
+  * Enable power save with longer timeouts for now. 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 16 Jan 2009 13:59:07 +0200
+
+osso-wlan (2.0.28) unstable; urgency=low
+
+  * Adhoc fixes: always scan for adhoc networks and give BSSID before
+    SSID to fix a race 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 15 Jan 2009 13:08:51 +0200
+
+osso-wlan (2.0.27) unstable; urgency=low
+
+  * Add upstart support. 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 13 Jan 2009 14:15:49 +0200
+
+osso-wlan (2.0.26) unstable; urgency=low
+
+  * Break eternal loop when everything goes wrong. 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 02 Jan 2009 10:51:10 +0200
+
+osso-wlan (2.0.25) unstable; urgency=low
+
+  * Do not scan when associating. Fixes: NB#93688
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 15 Dec 2008 11:12:30 +0200
+
+osso-wlan (2.0.24) unstable; urgency=low
+
+  * Fix MIC failure handling. Fixes: NB#91225
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 04 Dec 2008 10:57:23 +0200
+
+osso-wlan (2.0.23) unstable; urgency=low
+
+  * Remove association timer when connection fails. Fixes: NB#93688 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 27 Nov 2008 12:38:36 +0200
+
+osso-wlan (2.0.22) unstable; urgency=low
+
+  * Fix association failure when scan is going on
+  * Set TX power
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 17 Nov 2008 10:51:59 +0200
+
+osso-wlan (2.0.21) unstable; urgency=low
+
+  * Change DSME dependency from "Depends" to "Recommends" 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 11 Nov 2008 12:35:40 +0200
+
+osso-wlan (2.0.20) unstable; urgency=low
+
+  * MIC failure handling implemented.
+  * Some list handling improvements.
+  * WPS fixes.
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 30 Oct 2008 14:17:32 +0200
+
+osso-wlan (2.0.19) unstable; urgency=low
+
+  * Fix possible deadlock and other fixes. Fixes: NB#88767 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Wed, 29 Oct 2008 13:34:03 +0200
+
+osso-wlan (2.0.18) unstable; urgency=low
+
+  * Set bssid to 0 in interface down
+  * Add sanity checks for the states
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 20 Oct 2008 10:02:07 +0300
+
+osso-wlan (2.0.17) unstable; urgency=low
+
+  * Add ifname to wlan status struct
+  * Add deauthentication when interface is shutdown
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Wed, 15 Oct 2008 13:11:08 +0300
+
+osso-wlan (2.0.16) unstable; urgency=low
+
+  * Cache last scan results so that when we connect immediately we don't
+    need to scan.
+  * Don't use unitialized memory in WPA information elements. Fixes: NB#89615
+  * Remove sleep
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Sat, 11 Oct 2008 15:56:44 +0300
+
+osso-wlan (2.0.15) unstable; urgency=low
+
+  * Plug a minor mem leak
+  * Restructure code
+  * Adhoc fixes
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 09 Oct 2008 10:19:58 +0300
+
+osso-wlan (2.0.14) unstable; urgency=low
+
+  * Associated event works if in middle of scan
+  * Fix possible crashes
+  * Some optimizations in connection creation and scanning
+  * Added more documentation
+  * Send scan results also to DBUS when we need them internally
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Wed, 08 Oct 2008 12:20:03 +0300
+
+osso-wlan (2.0.13) unstable; urgency=low
+
+  * Fix mac80211 related modes after changing connection
+  * Better roaming support
+  * Fix race condition with WPA-EAP types
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 07 Oct 2008 10:12:16 +0300
+
+osso-wlan (2.0.12) unstable; urgency=low
+
+  * Increase association timeout
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 02 Oct 2008 13:02:33 +0300
+
+osso-wlan (2.0.11) unstable; urgency=low
+
+  * Generic roaming fixes.
+  * Fix WPA2 PMKID in roaming
+  * Fix channel in status request
+  * Fix connect timer when roaming
+  * Implemented: NR#189977, NR#189989
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 22 Sep 2008 14:28:41 +0300
+
+osso-wlan (2.0.10) unstable; urgency=low
+
+  * Fix IE loop not to terminate in case WPA1 IE is after WPA2 IE
+  * Another WPS open mode fix
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 18 Sep 2008 09:46:31 +0300
+
+osso-wlan (2.0.9) unstable; urgency=low
+
+  * Fix WPS in open mode 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 12 Sep 2008 11:19:13 +0300
+
+osso-wlan (2.0.8) unstable; urgency=low
+
+  * Reduced WPA related debug prints
+  * Add support for all information elements to userspace
+  * Partial: NR#189977, NR#189989
+  * Implemented: NR#189988
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 02 Sep 2008 12:38:01 +0300
+
+osso-wlan (2.0.7) unstable; urgency=low
+
+  * Try to fix lintian problems 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 29 Aug 2008 09:16:55 +0300
+
+osso-wlan (2.0.6) unstable; urgency=low
+
+  * Lintian fixes
+  * Add missing bit rates
+  * Make WPA work
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 19 Aug 2008 11:18:22 +0300
+
+osso-wlan (2.0.5) unstable; urgency=low
+
+  * Fixed a crash when connection was successful 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 15 Aug 2008 14:41:13 +0300
+
+osso-wlan (2.0.4) unstable; urgency=low
+
+  * Fix build issues 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 17 Jun 2008 09:37:20 +0300
+
+osso-wlan (2.0.3) unstable; urgency=low
+
+  * New EAPD API implemented and initial WPS support 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Mon, 16 Jun 2008 13:45:54 +0300
+
+osso-wlan (2.0.2) unstable; urgency=low
+
+  * Initial PMKSA cache implementation 
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 26 Feb 2008 12:17:13 +0200
+
+osso-wlan (2.0.1) unstable; urgency=low
+
+  * WPA1 mostly works
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 22 Feb 2008 13:58:05 +0200
+
+osso-wlan (2.0.0) unstable; urgency=low
+
+  * First Fremantle version
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 15 Feb 2008 10:00:23 +0200
 
 osso-wlan (1.3.9) unstable; urgency=low
 
