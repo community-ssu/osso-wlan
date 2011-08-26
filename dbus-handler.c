@@ -1027,6 +1027,9 @@ static gboolean wlan_connect_timer_cb(void* data)
 		/* Set BSSID to 0 */
 		memset(wlan_status.conn.bssid, 0, ETH_ALEN);
 
+		set_bssid(NULL_BSSID);
+		set_essid((char*)"", 1);
+
 		if (find_connection_and_associate(wlan_status.roam_cache,
 						  FALSE, FALSE, FALSE) == 0)
 			return FALSE;
@@ -1063,6 +1066,57 @@ static gboolean wlan_scan_cb(void* data)
 	DLOG_ERR("Scan failed, should not happen!");
 
 	set_wlan_state(WLAN_NOT_INITIALIZED, DISCONNECTED_SIGNAL, FORCE_YES);
+
+	return FALSE;
+}
+/**
+   WLAN scan later callback.
+   @param req iwreq.
+   @return status.
+*/
+static gboolean wlan_scan_later_cb(void* data)
+{
+	struct iwreq req;
+	struct iw_scan_req scan_req;
+
+	if (get_scan_state() == SCAN_NOT_ACTIVE) {
+		wlan_status.scan_id = 0;
+		return FALSE;
+	}
+
+	init_iwreq(&req);
+
+	memset(&scan_req, 0, sizeof(scan_req));
+
+	if (wlan_status.scan_ssid_len > 1 && wlan_status.scan_ssid != NULL) {
+		//DLOG_DEBUG("Active scan for: %s (len=%d)", ssid, ssid_len -1);
+		scan_req.essid_len = wlan_status.scan_ssid_len -1;
+		scan_req.bssid.sa_family = ARPHRD_ETHER;
+		memset(scan_req.bssid.sa_data, 0xff, ETH_ALEN);
+		memcpy(scan_req.essid, wlan_status.scan_ssid,
+		       wlan_status.scan_ssid_len -1);
+		req.u.data.pointer = (caddr_t) &scan_req;
+		req.u.data.length = sizeof(scan_req);
+		req.u.data.flags = IW_SCAN_THIS_ESSID;
+	}
+
+	if (ioctl(socket_open(), SIOCSIWSCAN, &req) < 0) {
+		if (errno == EBUSY) {
+			DLOG_ERR("Scan busy, retrying later");
+			return TRUE;
+		} else {
+			DLOG_ERR("Scan failed, errno %d if %s", errno, req.ifr_name);
+			wlan_status.scan_id = 0;
+			return FALSE;
+		}
+	}
+
+	wlan_status.scan_id = g_timeout_add_seconds(
+			WLANCOND_SCAN_TIMEOUT,
+			wlan_scan_cb,
+			NULL);
+
+        DLOG_INFO("Scan issued");
 
 	return FALSE;
 }
@@ -1930,8 +1984,31 @@ int scan(gchar *ssid, int ssid_len, gboolean add_timer)
 	}
 
 	if (ioctl(socket_open(), SIOCSIWSCAN, &req) < 0) {
-		DLOG_ERR("Scan failed");
-		return -1;
+		if (errno == EBUSY && add_timer == TRUE) {
+			DLOG_ERR("Scan busy, retrying later");
+
+			if (ssid != wlan_status.scan_ssid) {
+				if (ssid_len <= WLANCOND_MAX_SSID_SIZE+1) {
+					wlan_status.scan_ssid_len = ssid_len;
+				} else {
+					wlan_status.scan_ssid_len = 1;
+				}
+
+				memset(wlan_status.scan_ssid, 0, sizeof(wlan_status.scan_ssid));
+				if (ssid != NULL && wlan_status.scan_ssid_len > 1) {
+					memcpy(wlan_status.scan_ssid, ssid, wlan_status.scan_ssid_len);
+				}
+			}
+
+			wlan_status.scan_id = g_timeout_add_seconds(
+					WLANCOND_RESCAN_DELAY,
+					wlan_scan_later_cb,
+					NULL);
+			return 0;
+		} else {
+			DLOG_ERR("Scan failed, errno %d", errno);
+			return -1;
+		}
 	}
 
 	if (add_timer == TRUE) {
