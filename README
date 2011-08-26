@@ -1,0 +1,28 @@
+WLAN Connection Daemon
+=========================
+
+This daemon is responsible for controlling the WLAN connection as well as 
+messaging related information through the system D-Bus.
+
+The program must be run as root because many of the Wireless extensions
+require root priviledges
+
+GConf settings
+==============
+
+None.
+
+wlancond D-Bus API
+================
+
+Service:
+com.nokia.wlancond
+
+Interfaces:
+com.nokia.wlancond.request
+com.nokia.wlancond.signal
+
+Object paths:
+/com/nokia/wlancond/request
+/com/nokia/wlancond/signal
+

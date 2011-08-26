@@ -1,0 +1,36 @@
+#! /bin/sh
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/sbin/wlancond
+NAME=wlancond
+DESC="WLAN Connection Daemon"
+
+test -x $DAEMON || exit 0
+
+set -e
+
+case "$1" in
+  start)
+	if [ ! -e /tmp/first-boot-flag-tmp ]; then
+	    echo -n "Starting $DESC: "
+	    dsmetool -n -1 -t "$DAEMON"
+	    echo "$NAME."
+	fi
+	;;
+  stop)
+	echo -n "Stopping $DESC: "
+	dsmetool -k "$DAEMON"
+	echo "$NAME."
+	;;
+  restart|force-reload)
+	$0 stop
+	$0 start
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|force-reload}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
