@@ -37,9 +37,9 @@ void send_and_unref(DBusConnection *connection, DBusMessage *message);
 void send_invalid_args(DBusConnection *connection, DBusMessage *message);
 
 DBusMessage *new_dbus_signal(const char *path,
-                             const char *interface,
-                             const char *name,
-                             const char *destination);
+		const char *interface,
+		const char *name,
+		const char *destination);
 
 DBusMessage *new_dbus_method_return(DBusMessage *message);
 
@@ -48,7 +48,7 @@ DBusMessage *new_dbus_error(DBusMessage *message, const char *name);
 gchar *get_device_mode(DBusConnection *connection);
 gboolean add_mode_listener(DBusConnection *connection);
 gboolean add_cover_listener(DBusConnection *connection,
-                            void (*cover_cb)(void));
+		void (*cover_cb)(void));
 gboolean add_icd_listener(DBusConnection *connection);
 gboolean add_csd_listener(DBusConnection *connection);
 gboolean add_bluez_listener(DBusConnection *connection);

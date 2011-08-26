@@ -2,7 +2,7 @@ Source: osso-wlan
 Section: net
 Priority: optional
 Maintainer: Janne Ylalehto <janne.ylalehto@nokia.com>
-Build-Depends: debhelper (>= 4.0.0), libdbus-1-dev, libglib2.0-dev (>= 2.6.0), libgconf2-dev, libiw-dev, libosso-dev, osso-wlan-dev (>= 1.0.20), mce-dev, icd2-osso-ic-dev, upstart-dev, libcsnet-dev
+Build-Depends: debhelper (>= 4.0.0), libdbus-1-dev, libglib2.0-dev (>= 2.6.0), libgconf2-dev, libiw-dev, libosso-dev, osso-wlan-dev (>= 1.0.21), mce-dev, icd2-osso-ic-dev, upstart-dev
 Standards-Version: 3.7.2
 
 Package: osso-wlan
@@ -19,3 +19,9 @@ Architecture: any
 Depends: osso-wlan (= ${Source-Version})
 Description: Debug symbols for osso-wlan
  This package provides debug symbols for osso-wlan.
+
+Package: osso-wlan-doc
+Section: net 
+Architecture: any
+Description: Wireless LAN Connection Daemon documentation
+ This package provides documentation for osso-wlan

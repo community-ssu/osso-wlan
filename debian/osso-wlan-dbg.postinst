@@ -1,0 +1,17 @@
+#!/bin/sh
+# Osso-wlan-dbg postinst script
+
+# Run gconftool via server or directly if D-Bus is not running
+gconftool_run () {
+    if gconftool-2 -p &>/dev/null
+    then
+        gconftool-2 $* 2>/dev/null
+    else
+        gconftool-2 --direct \
+            --config-source xml::/etc/gconf/gconf.xml.defaults \
+            $* | sed '1 d' 2>/dev/null
+    fi
+}
+
+# Set the wlan-cond debug level to maximum (2)
+gconftool_run --set --type int '/system/osso/connectivity/IAP/wlancond_debug_level' '2'

@@ -1,9 +1,85 @@
-osso-wlan (3.0.6+0m5) unstable; urgency=low
+osso-wlan (3.0.18+0m5) unstable; urgency=low
 
   * This entry has been added by BIFH queue processor
-    Suffix +0m5 added to package revision
+    version has been changed to 3.0.18+0m5
 
- -- Henrik Saari <henrik.saari@nokia.com>  Mon, 21 Sep 2009 13:47:02 +0300
+ -- Laitinen Vesa-Matti <ext-vesa-matti.laitinen@nokia.com>  Tue, 02 Mar 2010 14:26:30 +0200
+
+osso-wlan (3.0.18) unstable; urgency=low
+
+  * Fixed: NB#158967 - Wlancond has unneeded build dependencies
+
+ -- Sami Enne <ext-sami.enne@nokia.com>  Tue, 2 Mar 2010 14:04:12 +0200
+
+osso-wlan (3.0.17) unstable; urgency=low
+
+  * Fixed: NB#157496 -  WLAN connection not disconnected after moving out
+    of range
+
+ -- Jason Rudd <ext-jason.rudd@nokia.com>  Thu, 19 Jan 2010 15:20:49 +0200
+
+osso-wlan (3.0.16) unstable; urgency=low
+
+  * Fixed: NB#154505 - WEP with shared key authentication fails with PR1.1.1 release 
+
+ -- Jason Rudd <ext-jason.rudd@nokia.com>  Tue, 17 Jan 2010 15:02:49 +0200
+
+
+osso-wlan (3.0.15) unstable; urgency=low
+
+  * Fixed: NB#147637 - Wlan Ui does not know connection state
+
+ -- Sami Enne <ext-sami.enne@nokia.com>  Tue, 19 Jan 2010 09:41:03 +0200
+
+osso-wlan (3.0.14) unstable; urgency=low
+
+  * Fixes: NB#122701 - Enable doc generation in osso-wlan code 
+
+ -- Jason Rudd <ext-jason.rudd@nokia.com>  Wed, 16 Dec 2009 13:23:45 +0200
+
+osso-wlan (3.0.13) unstable; urgency=low
+
+  * Fixes: NB#149000 - Wlan does not reconnect until rebooted
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Thu, 03 Dec 2009 08:43:04 +0200
+
+osso-wlan (3.0.12) unstable; urgency=low
+
+  * Fixes: NB#150438 - WLAN might get stuck to some access point
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 11 Dec 2009 13:19:20 +0200
+
+osso-wlan (3.0.11) unstable; urgency=low
+
+  * Fixes: NB#142549 - The device should not autoconnect too weak WLAN
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Fri, 20 Nov 2009 11:13:24 +0200
+
+osso-wlan (3.0.10) unstable; urgency=low
+
+  * Fixes: NB#138570 - BT-audio (HFP) gets distorted if WLAN connection
+  is active
+
+ -- Sami Enne <ext-sami.enne@nokia.com>  Tue, 21 Oct 2009 19:20:19 +0300
+
+osso-wlan (3.0.9) unstable; urgency=low
+
+  * Intendentation fixes
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 20 Oct 2009 09:39:39 +0300
+
+osso-wlan (3.0.8) unstable; urgency=low
+
+  * Fixes: NB#128044 - Connection drop in WLAN certification test with
+    powersave
+
+ -- Sami Enne <ext-sami.o.enne@nokia.com>  Fri, 02 Oct 2009 11:44:34 +0300
+
+osso-wlan (3.0.7) unstable; urgency=low
+
+  * Fixes: NB#140684 - Too much scanning when the signal is fluctuating
+
+ -- Janne Ylalehto <janne.ylalehto@nokia.com>  Tue, 06 Oct 2009 12:47:39 +0300
 
 osso-wlan (3.0.6) unstable; urgency=low
 

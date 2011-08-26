@@ -3,8 +3,8 @@
 
   Copyright (C) 2004 Nokia Corporation. All rights reserved.
 
-  @author Johan Hedberg <johan.hedberg@nokia.com>  
- 
+  @author Johan Hedberg <johan.hedberg@nokia.com>
+
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License as published by the
   Free Software Foundation; either version 2 of the License, or (at your
@@ -32,7 +32,7 @@
  * @returns 0 on success, -1 on failure
  */
 int setup_dbus_connection(const char *service,
-                          void (*handler_init)(DBusConnection *connection));
+		void (*handler_init)(DBusConnection *connection));
 
 /** Disconnect from the system D-Bus */
 void close_dbus_connection(void);

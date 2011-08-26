@@ -42,8 +42,8 @@
 
 /** Print error message and exit */
 #define die(...) do {   \
-    DLOG_ERR(__VA_ARGS__); \
-    exit(EXIT_FAILURE); \
+	DLOG_ERR(__VA_ARGS__); \
+	exit(EXIT_FAILURE); \
 } while (0)
 
 #endif /* _LOG_H_ */
