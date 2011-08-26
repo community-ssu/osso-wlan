@@ -617,14 +617,30 @@ static void save_caps(struct scan_results_t *scan_results,
 	if (ap_info->pairwise_cipher & CIPHER_SUITE_TKIP) {
 		scan_results->cap_bits |= WLANCOND_WPA_TKIP;
 	}
-	if (ap_info->pairwise_cipher & CIPHER_SUITE_WEP40 ||
-			ap_info->pairwise_cipher & CIPHER_SUITE_WEP104) {
-
-		if (no_wep == TRUE) {
+	if (wlan_status.allow_all_ciphers == TRUE) {
+		if (ap_info->pairwise_cipher & CIPHER_SUITE_WEP40) {
+			scan_results->extra_cap_bits |= WLANCOND_WEP40;
+		}
+		if (ap_info->pairwise_cipher & CIPHER_SUITE_WEP104) {
+			scan_results->extra_cap_bits |= WLANCOND_WEP104;
+		}
+		if (ap_info->group_cipher & CIPHER_SUITE_WEP40) {
+			scan_results->extra_cap_bits |= WLANCOND_WEP40_GROUP;
+		}
+		if (ap_info->group_cipher & CIPHER_SUITE_WEP104) {
+			scan_results->extra_cap_bits |= WLANCOND_WEP104_GROUP;
+		}
+	} else {
+		if (ap_info->pairwise_cipher & CIPHER_SUITE_WEP40 ||
+				ap_info->pairwise_cipher & CIPHER_SUITE_WEP104 ||
+				ap_info->group_cipher & CIPHER_SUITE_WEP40 ||
+				ap_info->group_cipher & CIPHER_SUITE_WEP104) {
 			DLOG_DEBUG("In WPA mode WEP is not allowed");
-			scan_results->cap_bits |= WLANCOND_UNSUPPORTED_NETWORK;
+			scan_results->cap_bits |=
+				WLANCOND_UNSUPPORTED_NETWORK;
 		}
 	}
+
 	DLOG_DEBUG("%s/%s/%s/%s for unicast",
 			(ap_info->pairwise_cipher & CIPHER_SUITE_CCMP)?
 			"AES":"-",
@@ -644,7 +660,7 @@ static void save_caps(struct scan_results_t *scan_results,
 	if (ap_info->group_cipher & CIPHER_SUITE_WEP40 ||
 			ap_info->group_cipher & CIPHER_SUITE_WEP104) {
 
-		if (no_wep == TRUE) {
+		if (no_wep == TRUE && wlan_status.allow_all_ciphers == FALSE) {
 			DLOG_DEBUG("In WPA mode WEP is not allowed");
 			scan_results->cap_bits |= WLANCOND_UNSUPPORTED_NETWORK;
 		}

@@ -60,7 +60,8 @@ typedef struct ap_info_t {
 } ap_info_t;
 
 gint set_encryption_method(guint32 cipher,
-			   struct wlan_status_t *wlan_status);
+			   struct wlan_status_t *wlan_status,
+			   struct scan_results_t *scan_results);
 int set_wpa_encryption(int encryption, struct wlan_status_t *wlan_status);
 int set_wpa2_encryption(int encryption, struct wlan_status_t *wlan_status);
 int handle_mic_failure(gboolean key_type, unsigned char *bssid);

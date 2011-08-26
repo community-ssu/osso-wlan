@@ -44,6 +44,7 @@ typedef struct scan_results_t
 	gint32         rssi;
 	guint32        channel;
 	guint32        cap_bits;
+	guint32        extra_cap_bits;
 	guint32        wpa_ie_len;
 	guint8         *wpa_ie;
 } scan_results_t;
@@ -140,6 +141,8 @@ typedef struct wlan_status_t
 	guint coex_state;
 	/* Call state */
 	guint call_state;
+	/* Allow all cipher suites */
+	gboolean allow_all_ciphers;
 } wlan_status_t;
 
 typedef struct wireless_iface
@@ -237,6 +240,7 @@ enum call_state {
 #define SLEEP_GCONF_PATH GCONF_PATH_PREFIX "wlan_sleep_timeout"
 #define INACTIVE_SLEEP_GCONF_PATH GCONF_PATH_PREFIX "inactive_wlan_sleep_timeout"
 #define DEBUG_LEVEL GCONF_PATH_PREFIX "wlancond_debug_level"
+#define WLANCOND_ALLOW_ALL_CIPHERS GCONF_PATH_PREFIX "allow_wep_ciphers_in_WPA"
 
 /* Debug printing priority */
 #define WLANCOND_PRIO_HIGH   2
@@ -252,6 +256,12 @@ enum call_state {
 #define PHONE_NET_DBUS_PATH "/com/nokia/phone/net"
 #define PHONE_NET_DBUS_INTERFACE "Phone.Net"
 #define PHONE_REGISTRATION_STATUS_CHANGE_SIG "registration_status_change"
+
+/* Internal cipher suite defines */
+#define WLANCOND_WEP40        (1<<0)
+#define WLANCOND_WEP104       (1<<1)
+#define WLANCOND_WEP40_GROUP  (1<<2)
+#define WLANCOND_WEP104_GROUP (1<<3)
 
 /* Bluez DBUS service name */
 /* Apparently there is no header for these... */

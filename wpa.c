@@ -149,16 +149,24 @@ static int generate_wpa_ie(guint32 encryption,
 	hdr_p = (guint8*)(wpa_hdr + 1);
 
 	/* Group cipher suite */
-	if (wlan_status->group_cipher == CIPHER_SUITE_TKIP) {
+	switch (wlan_status->group_cipher) {
+	case CIPHER_SUITE_TKIP:
 		memcpy(hdr_p, WPA_CIPHER_SUITE_TKIP, CIPHER_SUITE_LEN);
-	} else if (wlan_status->group_cipher == CIPHER_SUITE_CCMP) {
+		break;
+	case CIPHER_SUITE_CCMP:
 		memcpy(hdr_p, WPA_CIPHER_SUITE_CCMP, CIPHER_SUITE_LEN);
-	} else {
+		break;
+	case CIPHER_SUITE_WEP104:
+		memcpy(hdr_p, WPA_CIPHER_SUITE_WEP104, CIPHER_SUITE_LEN);
+		break;
+	case CIPHER_SUITE_WEP40:
+		memcpy(hdr_p, WPA_CIPHER_SUITE_WEP40, CIPHER_SUITE_LEN);
+		break;
+	default:
 		DLOG_ERR("Unsupported group cipher suite");
 		g_free(wpa_ie);
 		return -1;
 	}
-
 
 	hdr_p += CIPHER_SUITE_LEN;
 
@@ -166,12 +174,22 @@ static int generate_wpa_ie(guint32 encryption,
 	*hdr_p++ = 1;
 	*hdr_p++ = 0;
 
-	if (wlan_status->pairwise_cipher == CIPHER_SUITE_TKIP) {
+	switch (wlan_status->pairwise_cipher) {
+	case CIPHER_SUITE_TKIP:
 		memcpy(hdr_p, WPA_CIPHER_SUITE_TKIP, CIPHER_SUITE_LEN);
-	} else if (wlan_status->pairwise_cipher == CIPHER_SUITE_CCMP) {
+		break;
+	case CIPHER_SUITE_CCMP:
 		memcpy(hdr_p, WPA_CIPHER_SUITE_CCMP, CIPHER_SUITE_LEN);
-	}  else {
-		DLOG_ERR("Unsupported pairwise cipher suite");
+		break;
+	case CIPHER_SUITE_WEP104:
+		memcpy(hdr_p, WPA_CIPHER_SUITE_WEP104, CIPHER_SUITE_LEN);
+		break;
+	case CIPHER_SUITE_WEP40:
+		memcpy(hdr_p, WPA_CIPHER_SUITE_WEP40, CIPHER_SUITE_LEN);
+		break;
+	default:
+		DLOG_ERR("Unsupported pairwise cipher suite: %08x",
+				wlan_status->pairwise_cipher);
 		g_free(wpa_ie);
 		return -1;
 	}
@@ -239,11 +257,20 @@ static int generate_wpa2_ie(guint32 encryption,
 	hdr_p = (guint8*)(wpa_hdr + 1);
 
 	/* Group cipher suite */
-	if (wlan_status->group_cipher == CIPHER_SUITE_TKIP) {
+	switch (wlan_status->group_cipher) {
+	case CIPHER_SUITE_TKIP:
 		memcpy(hdr_p, RSN_CIPHER_SUITE_TKIP, CIPHER_SUITE_LEN);
-	} else if (wlan_status->group_cipher == CIPHER_SUITE_CCMP) {
+		break;
+	case CIPHER_SUITE_CCMP:
 		memcpy(hdr_p, RSN_CIPHER_SUITE_CCMP, CIPHER_SUITE_LEN);
-	} else {
+		break;
+	case CIPHER_SUITE_WEP104:
+		memcpy(hdr_p, RSN_CIPHER_SUITE_WEP104, CIPHER_SUITE_LEN);
+		break;
+	case CIPHER_SUITE_WEP40:
+		memcpy(hdr_p, RSN_CIPHER_SUITE_WEP40, CIPHER_SUITE_LEN);
+		break;
+	default:
 		DLOG_ERR("Unsupported group cipher suite");
 		g_free(wpa_ie);
 		return -1;
@@ -255,11 +282,20 @@ static int generate_wpa2_ie(guint32 encryption,
 	*hdr_p++ = 1;
 	*hdr_p++ = 0;
 
-	if (wlan_status->pairwise_cipher == CIPHER_SUITE_TKIP) {
+	switch (wlan_status->pairwise_cipher) {
+	case CIPHER_SUITE_TKIP:
 		memcpy(hdr_p, RSN_CIPHER_SUITE_TKIP, CIPHER_SUITE_LEN);
-	} else if (wlan_status->pairwise_cipher == CIPHER_SUITE_CCMP) {
+		break;
+	case CIPHER_SUITE_CCMP:
 		memcpy(hdr_p, RSN_CIPHER_SUITE_CCMP, CIPHER_SUITE_LEN);
-	} else {
+		break;
+	case CIPHER_SUITE_WEP104:
+		memcpy(hdr_p, RSN_CIPHER_SUITE_WEP104, CIPHER_SUITE_LEN);
+		break;
+	case CIPHER_SUITE_WEP40:
+		memcpy(hdr_p, RSN_CIPHER_SUITE_WEP40, CIPHER_SUITE_LEN);
+		break;
+	default:
 		DLOG_ERR("Unsupported pairwise cipher suite");
 		g_free(wpa_ie);
 		return -1;
@@ -343,22 +379,28 @@ int set_wpa_ie(struct wlan_status_t *wlan_status)
 	return 0;
 }
 
-/* Fixme, add WEP40 support !!!
- */
-static guint32 pairwise_encryption_to_cipher(guint32 encryption)
+static guint32 pairwise_encryption_to_cipher(guint32 encryption,
+		struct scan_results_t *scan_results)
 {
 	if ((encryption & WLANCOND_ENCRYPT_ALG_MASK) == WLANCOND_WPA_TKIP)
 		return IW_AUTH_CIPHER_TKIP;
 	if ((encryption & WLANCOND_ENCRYPT_ALG_MASK) == WLANCOND_WPA_AES)
 		return IW_AUTH_CIPHER_CCMP;
+	if ((encryption & WLANCOND_ENCRYPT_METHOD_MASK) == WLANCOND_WPA_PSK ||
+			(encryption & WLANCOND_ENCRYPT_METHOD_MASK)
+			== WLANCOND_WPA_EAP) {
+		if (scan_results->extra_cap_bits & WLANCOND_WEP40)
+			return IW_AUTH_CIPHER_WEP40;
+		else if (scan_results->extra_cap_bits & WLANCOND_WEP104)
+			return IW_AUTH_CIPHER_WEP104;
+	}
 	if ((encryption & WLANCOND_ENCRYPT_METHOD_MASK) == WLANCOND_WEP)
 		return IW_AUTH_CIPHER_WEP104;
 	return IW_AUTH_CIPHER_NONE;
 }
 
-/* Fixme, add WEP40 support !!!
- */
-static guint32 group_encryption_to_cipher(guint32 encryption)
+static guint32 group_encryption_to_cipher(guint32 encryption,
+		struct scan_results_t *scan_results)
 {
 	if ((encryption & WLANCOND_ENCRYPT_GROUP_ALG_MASK) ==
 			WLANCOND_WPA_TKIP_GROUP)
@@ -366,6 +408,14 @@ static guint32 group_encryption_to_cipher(guint32 encryption)
 	if ((encryption & WLANCOND_ENCRYPT_GROUP_ALG_MASK) ==
 			(guint32)WLANCOND_WPA_AES_GROUP)
 		return IW_AUTH_CIPHER_CCMP;
+	if ((encryption & WLANCOND_ENCRYPT_METHOD_MASK) == WLANCOND_WPA_PSK ||
+			(encryption & WLANCOND_ENCRYPT_METHOD_MASK)
+			== WLANCOND_WPA_EAP) {
+		if (scan_results->extra_cap_bits & WLANCOND_WEP40_GROUP)
+			return IW_AUTH_CIPHER_WEP40;
+		else if (scan_results->extra_cap_bits & WLANCOND_WEP104_GROUP)
+			return IW_AUTH_CIPHER_WEP104;
+	}
 	if ((encryption & WLANCOND_ENCRYPT_METHOD_MASK) == WLANCOND_WEP)
 		return IW_AUTH_CIPHER_WEP104;
 	return IW_AUTH_CIPHER_NONE;
@@ -409,10 +459,12 @@ int set_countermeasures(guint on_off)
   Set encryption settings.
   @param encryption Encryption settings.
   @param wlan_status WLAN status struct.
+  @param scan_results Scan results
   @return status.
  */
 gint set_encryption_method(guint32 encryption,
-			   struct wlan_status_t *wlan_status)
+			   struct wlan_status_t *wlan_status,
+			   struct scan_results_t *scan_results)
 {
 	gint32 value = 0;
 	guint32 key_mgmt = 0;
@@ -487,12 +539,12 @@ gint set_encryption_method(guint32 encryption,
 	if (set_wpa_ie(wlan_status) <0)
 		return -1;
 
-	value = pairwise_encryption_to_cipher(encryption);
+	value = pairwise_encryption_to_cipher(encryption, scan_results);
 
 	if (set_encryption_method_helper(IW_AUTH_CIPHER_PAIRWISE, value) < 0)
 		return -1;
 
-	value = group_encryption_to_cipher(encryption);
+	value = group_encryption_to_cipher(encryption, scan_results);
 
 	if (set_encryption_method_helper(IW_AUTH_CIPHER_GROUP, value) < 0)
 		return -1;

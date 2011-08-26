@@ -198,6 +198,53 @@ static gint get_gconf_int(const gchar* path)
 	gconf_value_free(gconf_value);
 	return value;
 }
+
+/**
+    Helper function for getting boolean value from the settings.
+    @param path Setting path to search for user specified value.
+    @param error Variable to hold possible error.
+    @return value Boolean value.
+*/
+static gboolean get_setting_bool(const gchar* path, gboolean *error)
+{
+	gboolean value = FALSE;
+	GConfClient *client;
+	GConfValue *gconf_value;
+	GError *g_error = NULL;
+
+	*error = TRUE;
+
+	client = gconf_client_get_default();
+	if (client == NULL) {
+		return value;
+	}
+
+	gconf_value = gconf_client_get(client, path, &g_error);
+
+	g_object_unref(client);
+
+	if (g_error != NULL) {
+		DLOG_ERR("Could not get setting:%s, error:%s", path,
+				g_error->message);
+
+		g_clear_error(&g_error);
+		return value;
+	}
+
+	if (gconf_value == NULL) {
+		return value;
+	}
+	if (gconf_value->type == GCONF_VALUE_BOOL) {
+		value = gconf_value_get_bool(gconf_value);
+		DLOG_DEBUG("User selected value: %d for %s", value, path);
+		*error = FALSE;
+	}
+
+	gconf_value_free(gconf_value);
+
+	return value;
+}
+
 /**
    Initialize logging.
 */
@@ -250,6 +297,7 @@ int clean_dbus_handler(void)
 {
 	if (wlan_socket > 0)
 		close(wlan_socket);
+
 	return 0;
 }
 /**
@@ -894,6 +942,8 @@ static void check_bt_status(void) {
  */
 int init_dbus_handler(void)
 {
+	gboolean error;
+
 	handle_country();
 
 	if (get_own_mac() < 0) {
@@ -902,6 +952,9 @@ int init_dbus_handler(void)
 	}
 
 	check_bt_status();
+
+	wlan_status.allow_all_ciphers = get_setting_bool(
+			WLANCOND_ALLOW_ALL_CIPHERS, &error);
 
 	return 0;
 }
@@ -1608,7 +1661,8 @@ static gboolean set_tx_power(guint power, int sock)
    @param encryption Encryption settings.
    @return status.
 */
-static int update_algorithms(guint32 encryption)
+static int update_algorithms(guint32 encryption,
+		struct scan_results_t *scan_results)
 {
 	wlan_status.group_cipher = 0;
 	wlan_status.pairwise_cipher = 0;
@@ -1636,7 +1690,17 @@ static int update_algorithms(guint32 encryption)
 			WLANCOND_WPA_AES) {
 		DLOG_DEBUG("AES selected for unicast");
 		wlan_status.pairwise_cipher = CIPHER_SUITE_CCMP;
-
+	} else if (wlan_status.allow_all_ciphers == TRUE) {
+		if (scan_results->extra_cap_bits & WLANCOND_WEP40) {
+			DLOG_DEBUG("WEP40 selected for unicast");
+			wlan_status.pairwise_cipher = CIPHER_SUITE_WEP40;
+		} else if (scan_results->extra_cap_bits & WLANCOND_WEP104) {
+			DLOG_DEBUG("WEP104 selected for unicast");
+			wlan_status.pairwise_cipher = CIPHER_SUITE_WEP104;
+		} else {
+			DLOG_ERR("Not supported encryption %08x", encryption);
+			return -1;
+		}
 	} else {
 		DLOG_ERR("Not supported encryption %08x", encryption);
 		return -1;
@@ -1650,6 +1714,18 @@ static int update_algorithms(guint32 encryption)
 			(unsigned int)WLANCOND_WPA_AES_GROUP) {
 		DLOG_DEBUG("AES Selected for multicast");
 		wlan_status.group_cipher = CIPHER_SUITE_CCMP;
+	} else if (wlan_status.allow_all_ciphers == TRUE) {
+		if (scan_results->extra_cap_bits & WLANCOND_WEP40_GROUP) {
+			DLOG_DEBUG("WEP40 selected for group key");
+			wlan_status.group_cipher = CIPHER_SUITE_WEP40;
+		} else if (scan_results->extra_cap_bits
+				& WLANCOND_WEP104_GROUP) {
+			DLOG_DEBUG("WEP104 selected for group key");
+			wlan_status.group_cipher = CIPHER_SUITE_WEP104;
+		} else {
+			DLOG_ERR("Not supported encryption %08x", encryption);
+			return -1;
+		}
 	} else {
 		DLOG_ERR("Not supported encryption %08x", encryption);
 		return -1;
@@ -2234,7 +2310,7 @@ int associate(struct scan_results_t *scan_results)
 		clear_wpa_keys(conn->bssid);
 	}
 
-	if (update_algorithms(conn->encryption) < 0) {
+	if (update_algorithms(conn->encryption, scan_results) < 0) {
 		return -1;
 	}
 
@@ -2247,7 +2323,8 @@ int associate(struct scan_results_t *scan_results)
 
 	memcpy(conn->bssid, scan_results->bssid, ETH_ALEN);
 
-	if ((ret = set_encryption_method(conn->encryption, &wlan_status)) < 0) {
+	if ((ret = set_encryption_method(conn->encryption, &wlan_status,
+					scan_results)) < 0) {
 		return ret;
 	}
 

@@ -1,9 +1,23 @@
-osso-wlan (3.0.18+0m5) unstable; urgency=low
+osso-wlan (3.0.20+0m5) unstable; urgency=low
 
   * This entry has been added by BIFH queue processor
-    version has been changed to 3.0.18+0m5
+    version has been changed to 3.0.20+0m5
 
- -- Laitinen Vesa-Matti <ext-vesa-matti.laitinen@nokia.com>  Tue, 02 Mar 2010 14:26:30 +0200
+ -- Tuomo Paqvalin <ext-tuomo.c.paqvalin@nokia.com>  Mon, 05 Jul 2010 12:19:58 +0300
+
+osso-wlan (3.0.20) unstable; urgency=low
+
+  * Fixed:  NB#159194 - Add support for WEP cipher in WPA mode to support
+    Eduroam, fixes the regression
+
+ -- Jin Qing <ext-qing.1.jin@nokia.com>  Fri,  2 Jul 2010 10:34:40 +0300
+
+osso-wlan (3.0.19) unstable; urgency=low
+
+  * Fixed: NB#159194 - Add support for WEP cipher in WPA mode to support
+    Eduroam
+
+ -- Sami Enne <ext-sami.enne@nokia.com>  Wed, 2 Jun 2010 15:04:22 +0300
 
 osso-wlan (3.0.18) unstable; urgency=low
 
