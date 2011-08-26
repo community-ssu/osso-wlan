@@ -29,7 +29,6 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_ether.h>
-#include <linux/compiler.h>
 #include <iwlib.h>
 #include <wireless.h>
 #define DBUS_API_SUBJECT_TO_CHANGE

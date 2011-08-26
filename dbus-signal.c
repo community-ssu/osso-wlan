@@ -99,15 +99,7 @@ GSList *save_scan_results(struct scan_results_t *scan_results,
         
         //DLOG_DEBUG("\nScan results to save\n");
 
-        // ssid_len includes null termination
-        if (scan_results->ssid_len < 2) {
-                DLOG_DEBUG("Hidden SSID not saved to scan results");
-                // We have to free the result here since it is not saved
-                g_free(scan_results);
-                return scan_results_save;
-        }
-        
-        scan_results_save = g_slist_append(scan_results_save, scan_results);
+        scan_results_save = g_slist_prepend(scan_results_save, scan_results);
         
         return scan_results_save;
 }
@@ -123,7 +115,9 @@ void send_dbus_scan_results(GSList *scan_results_save, const char* sender,
         DBusMessageIter iter, sub;
         GSList *list;
         int list_count = 0;
-        
+        unsigned char* v;
+        char* p;
+
         if (sender == NULL || strnlen(sender, 5) == 0)
                 return;
 
@@ -141,8 +135,9 @@ void send_dbus_scan_results(GSList *scan_results_save, const char* sender,
                            WLANCOND_MAX_NETWORKS);
                 number_of_results = WLANCOND_MAX_NETWORKS;
         }
-        dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, 
-                                       &number_of_results);
+        if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, 
+                                            &number_of_results))
+                die("Out of memory");
         
         for (list = scan_results_save; list != NULL && list_count <= number_of_results; list = list->next) {
                 struct scan_results_t *scan_results = (struct scan_results_t*)list->data;
@@ -152,32 +147,36 @@ void send_dbus_scan_results(GSList *scan_results_save, const char* sender,
                            scan_results->rssi, scan_results->channel,
                            scan_results->cap_bits);
                 
-                char *p = scan_results->ssid;
+                p = scan_results->ssid;
                 
                 if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "y", &sub))
-                        die("Out of memory during dbus_message_iter_open_container");
-                dbus_message_iter_append_fixed_array(
-                        &sub, DBUS_TYPE_BYTE, &p, scan_results->ssid_len);
+                        die("Out of memory");
+                if (!dbus_message_iter_append_fixed_array(
+                            &sub, DBUS_TYPE_BYTE, &p, scan_results->ssid_len))
+                        die("Out of memory");
                 if (!dbus_message_iter_close_container(&iter, &sub))
-                        die("Out of memory during dbus_message_iter_close_container");
-                p = scan_results->bssid;
-                if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "y", &sub))
-                        die("Out of memory during dbus_message_iter_open_container");
-                dbus_message_iter_append_fixed_array(&sub, DBUS_TYPE_BYTE, 
-                                                     &p, ETH_ALEN);
-                if (!dbus_message_iter_close_container(&iter, &sub))
-                        die("Out of memory during dbus_message_iter_close_container");
-                dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, 
-                                               &scan_results->rssi);
-                dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, 
-                                               &scan_results->channel);
-                dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, 
-                                               &scan_results->cap_bits);
-        }
+                        die("Out of memory");
 
-        if (results != NULL) {
-                send_and_unref(get_dbus_connection(), results);
+                v = scan_results->bssid;
+                if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "y", &sub))
+                        die("Out of memory");
+                if (!dbus_message_iter_append_fixed_array(&sub, DBUS_TYPE_BYTE, 
+                                                          &v, ETH_ALEN))
+                        die("Out of memory");
+                if (!dbus_message_iter_close_container(&iter, &sub))
+                        die("Out of memory");
+                if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, 
+                                                    &scan_results->rssi))
+                        die("Out of memory");
+                if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, 
+                                                    &scan_results->channel))
+                        die("Out of memory");
+                if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, 
+                                                    &scan_results->cap_bits))
+                        die("Out of memory");
         }
+        
+        send_and_unref(get_dbus_connection(), results);
 }
 
 /**
@@ -197,10 +196,7 @@ void disconnected_signal(void)
                          DBUS_TYPE_STRING, &ifname,
                          DBUS_TYPE_INVALID);
         
-        if (disconnected != NULL) {
-                send_and_unref(get_dbus_connection(),
-                               disconnected);
-        }
+        send_and_unref(get_dbus_connection(), disconnected);
 }
 
 /**
@@ -208,7 +204,7 @@ void disconnected_signal(void)
    @param scan_results Scan results to be sent.
    @param auth_status Authentication status.
 */
-static void connected_signal(unsigned char* bssid, dbus_int32_t auth_status)
+static void connected_signal(char* bssid, dbus_int32_t auth_status)
 {
         DBusMessage *connected;
         
@@ -224,9 +220,7 @@ static void connected_signal(unsigned char* bssid, dbus_int32_t auth_status)
                          DBUS_TYPE_INT32, &auth_status,
                          DBUS_TYPE_INVALID);
         
-        if (connected != NULL) {
-                send_and_unref(get_dbus_connection(), connected);
-        }
+        send_and_unref(get_dbus_connection(), connected);
 }
 
 /**
@@ -606,7 +600,7 @@ static int handle_wpa_ie_event_binary(unsigned char* p, unsigned int length,
                 }
         }
         /* Remove WEP bit to make UI show correct dialogs */
-        if (no_wep) {
+        if (no_wep == TRUE) {
                 scan_results->cap_bits ^= WLANCOND_WEP;
         }
 
@@ -889,7 +883,7 @@ static void handle_netlink_event(int fd)
                 {
                         len = hdr->nlmsg_len;
                         
-                        if ((len - sizeof(*hdr) < 0) || len > res) {
+                        if ((len - (int)sizeof(*hdr) < 0) || len > res) {
                                 DLOG_ERR("Error in netlink message length");
                                 break;
                         }

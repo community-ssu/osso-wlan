@@ -88,6 +88,8 @@ static gboolean ignore_cover_events = FALSE;
 #define OPEN_STR "open"
 #endif
 
+#define WLAN_PREFIX_STR "wlan"
+
 /** 
  * Helper function for socket opening 
  */
@@ -208,8 +210,7 @@ static gint get_gconf_int(const gchar* path)
         gconf_value = gconf_client_get(client, path, &error); 
 
         if (error != NULL) {
-                DLOG_ERR("Could not get setting:%s, error:%s", 
-                         SLEEP_GCONF_PATH, 
+                DLOG_ERR("Could not get setting:%s, error:%s", path, 
                          error->message);
                 
                 g_clear_error(&error);
@@ -513,12 +514,11 @@ void activity_check(dbus_bool_t inactivity) {
 
         if (inactivity == FALSE) {
                 //DLOG_DEBUG("WLAN activity mode changed to active");
-                set_bgscan_params(FALSE);
         } else {
                 //DLOG_DEBUG("WLAN activity mode changed to inactive");
-                set_bgscan_params(TRUE);
         }
 
+        set_bgscan_params(inactivity);
         set_power_state(powersave, sock);     
 }
 
@@ -877,12 +877,15 @@ static int set_we_name(int sock, char *name, char *args[], int count)
                 DLOG_DEBUG("Ifname %s does not support wireless extensions\n", 
                            name);
         } else {
-                DLOG_DEBUG("Found interface %s", name);
-                if (ifname != NULL)
-                        g_free(ifname);
-                ifname = g_malloc(IFNAMSIZ+1);
-                strncpy(ifname, name, IFNAMSIZ);
-                ifname[IFNAMSIZ] = '\0';
+                //DLOG_DEBUG("Found interface %s", name);
+                if (g_str_has_prefix(name, WLAN_PREFIX_STR)) {
+                        DLOG_DEBUG("Found WLAN interface %s", name);
+                        if (ifname != NULL)
+                                g_free(ifname);
+                        ifname = g_malloc(IFNAMSIZ+1);
+                        strncpy(ifname, name, IFNAMSIZ);
+                        ifname[IFNAMSIZ] = '\0';
+                }
         }
         
         return 0;

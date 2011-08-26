@@ -29,7 +29,7 @@ CFLAGS += -DDEBUG
 CFLAGS += -DUSE_MCE_MODE -DACTIVITY_CHECK
 
 # Library flags
-CFLAGS   += `pkg-config --cflags glib-2.0 gconf-2.0 dbus-1`
+CFLAGS   += `pkg-config --cflags glib-2.0 gconf-2.0 dbus-1 osso-ic`
 LDFLAGS  += `pkg-config --libs glib-2.0 gconf-2.0 dbus-1`
 
 # Wireless tools library, NOTE under GPL
