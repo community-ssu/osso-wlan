@@ -1,3 +1,9 @@
+osso-wlan (3.0.20.1+0cssu1) unstable; urgency=low
+
+  * Follow CSSU numbering scheme
+
+ -- Mohammad Abu-Garbeyyeh <mohammad7410@gmail.com>  Tue, 17 Jan 2012 23:08:06 +0200
+
 osso-wlan (3.0.20+0m5-1) unstable; urgency=low
 
   * Fixed: WLAN connection get stuck after disconnecting through moving
