@@ -457,11 +457,12 @@ static gint run_calibration(void) {
 #define KILL_SUPPLICANT "/usr/bin/killall"
 #define SUPPLICANT_NAME "eapd"
 static void kill_supplicant(void) {
-	gchar *args[3];
+	gchar *args[4];
 	guint count = 0;
 	args[count++] = (gchar*)KILL_SUPPLICANT;
 	args[count++] = (gchar*)"-9";
 	args[count++] = (gchar*)SUPPLICANT_NAME;
+	args[count++] = NULL;
 
 	if (!g_spawn_sync (NULL, args, NULL, 0,
 			   NULL, NULL, NULL, NULL, NULL, NULL)) {
