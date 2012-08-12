@@ -1,3 +1,11 @@
+osso-wlan (3.0.20.1+0cssu2) unstable; urgency=low
+
+  * Fix `killall -9 eapd` used to recover from eapd blocking additional EAP
+    wireless connections which would hang the connection attempt and prompt
+    the user to try to connect again (and again).
+
+ -- David Fries <David@Fries.net>  Sat, 11 Aug 2012 19:49:06 -0500
+
 osso-wlan (3.0.20.1+0cssu1) unstable; urgency=low
 
   * Follow CSSU numbering scheme
