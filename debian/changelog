@@ -4,7 +4,7 @@ osso-wlan (3.0.20.1+0cssu2) unstable; urgency=low
     wireless connections which would hang the connection attempt and prompt
     the user to try to connect again (and again).
   * Fix compile error "!!! Error: Cannot open Ghostscript for piped input!"
-    Add build dependency on ghostscript package.
+    Add build dependency on gs-gpl package.
 
  -- David Fries <David@Fries.net>  Sat, 11 Aug 2012 19:49:06 -0500
 
