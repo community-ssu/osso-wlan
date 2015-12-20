@@ -30,7 +30,6 @@ configure: configure-stamp
 configure-stamp:
 	dh_testdir
 	# Add here commands to configure the package.
-	--enable-docs
 	touch configure-stamp
 
 
