@@ -3354,15 +3354,7 @@ static DBusHandlerResult disassociate_request(DBusMessage    *message,
 	mlme_command(wlan_status.conn.bssid, IW_MLME_DISASSOC,
 			WLANCOND_REASON_LEAVING);
 
-	set_wlan_state(WLAN_INITIALIZED_FOR_CONNECTION, NO_SIGNAL, FORCE_NO);
-
-	DLOG_DEBUG("Disassociated, trying to find a new connection");
-
-	if (scan(wlan_status.conn.ssid, wlan_status.conn.ssid_len, TRUE) < 0) {
-		/* Set_wlan_state puts IF down */
-		set_wlan_state(WLAN_NOT_INITIALIZED, DISCONNECTED_SIGNAL,
-				FORCE_YES);
-	}
+	set_interface_state(socket_open(), CLEAR, IFF_UP);
 
 	reply = new_dbus_method_return(message);
         send_and_unref(connection, reply);
