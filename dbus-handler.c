@@ -3321,7 +3321,7 @@ static DBusHandlerResult disconnect_request(DBusMessage    *message,
 	set_scan_state(SCAN_NOT_ACTIVE);
 
 	/* Set_wlan_state puts IF down */
-	set_wlan_state(WLAN_NOT_INITIALIZED, DISCONNECTED_SIGNAL, FORCE_YES);
+	set_wlan_state(WLAN_NOT_INITIALIZED, DISCONNECTED_SIGNAL, FORCE_NO);
 
 	reply = new_dbus_method_return(message);
 	send_and_unref(connection, reply);
