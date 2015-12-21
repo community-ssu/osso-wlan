@@ -3354,8 +3354,6 @@ static DBusHandlerResult disassociate_request(DBusMessage    *message,
 	mlme_command(wlan_status.conn.bssid, IW_MLME_DISASSOC,
 			WLANCOND_REASON_LEAVING);
 
-	set_interface_state(socket_open(), CLEAR, IFF_UP);
-
 	reply = new_dbus_method_return(message);
         send_and_unref(connection, reply);
 
